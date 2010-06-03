@@ -51,3 +51,16 @@ class PositiveRoundedDecimalField(RoundedDecimalField):
 
         return value
 
+#for south to work with the custom fields in Bursar
+try:
+    from south.modelsinspector import add_introspection_rules
+    rules = [
+      (
+        (CurrencyField,),
+        [],
+        {},
+      )
+    ]
+    add_introspection_rules(rules, ["^bursar\.fields"])
+except ImportError:
+    pass #if you don't have south, ignore

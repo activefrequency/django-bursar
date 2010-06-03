@@ -16,6 +16,7 @@ from django.utils.translation import ugettext_lazy as _
 import base64
 import logging
 import operator
+import keyedcache
 
 log = logging.getLogger('bursar.models')
 
@@ -86,7 +87,7 @@ class CreditCardDetail(models.Model):
     Stores an encrypted CC number, its information, and its
     displayable number.
     """
-    payment = models.OneToOneField('Payment', related_name="creditcard")
+    payment = models.OneToOneField('Payment', related_name="creditcard", blank=True, null=True)
     credit_type = models.CharField(_("Credit Card Type"), max_length=16)
     display_cc = models.CharField(_("CC Number (Last 4 digits)"),
         max_length=4, )
@@ -108,8 +109,9 @@ class CreditCardDetail(models.Model):
         if get_bursar_setting('STORE_CREDIT_NUMBERS'):
             self.encrypted_cc = encrypted_cc
         else:
-            log.debug('standin=%s', (self.display_cc, self.expire_month, self.expire_year, self.payment.id))
-            standin = "%s%i%i%i" % (self.display_cc, self.expire_month, self.expire_year, self.payment.id)
+            payment_id = self.payment.id if self.payment else 0
+            log.debug('standin=%s', (self.display_cc, self.expire_month, self.expire_year, payment_id))
+            standin = "%s%i%i%i" % (self.display_cc, self.expire_month, self.expire_year, payment_id)
             self.encrypted_cc = _encrypt_code(standin)
             key = _encrypt_code(standin + '-card')
             keyedcache.cache_set(key, skiplog=True, length=60*60, value=encrypted_cc)
