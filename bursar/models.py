@@ -34,11 +34,11 @@ class PaymentBase(models.Model):
     details = models.CharField(_("Details"), max_length=255, blank=True, null=True)
     reason_code = models.CharField(_('Reason Code'),  max_length=255, blank=True, null=True)
 
-    def save(self, force_insert=False, force_update=False):
+    def save(self, *args, **kwargs):
         if not self.pk:
             self.time_stamp = datetime.now()
 
-        super(PaymentBase, self).save(force_insert=force_insert, force_update=force_update)
+        super(PaymentBase, self).save(*args, **kwargs)
 
     class Meta:
         abstract = True
@@ -69,14 +69,14 @@ class Authorization(PaymentBase):
             remaining = self.amount
         return remaining
             
-    def save(self, force_insert=False, force_update=False):
+    def save(self, *args, **kwargs):
         # create linked payment
         try:
             capture = self.capture
         except Payment.DoesNotExist:
             log.debug('Payment Authorization - creating linked payment for %s', self.purchase)
             self.capture = Payment.objects.create_linked(self)
-        super(PaymentBase, self).save(force_insert=force_insert, force_update=force_update)
+        super(PaymentBase, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = _("Order Payment Authorization")
@@ -213,7 +213,7 @@ class PaymentPending(PaymentBase):
         else:
             return u"Pending Payment (unsaved)"
 
-    def save(self, force_insert=False, force_update=False):
+    def save(self, *args, **kwargs):
         # create linked payment
         try:
             capture = self.capture
@@ -221,7 +221,7 @@ class PaymentPending(PaymentBase):
             log.debug('Pending Payment - creating linked payment')
             self.capture = Payment.objects.create_linked(self)
             
-        super(PaymentBase, self).save(force_insert=force_insert, force_update=force_update)
+        super(PaymentBase, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = _("Pending Payment")
@@ -350,7 +350,7 @@ class Purchase(models.Model):
         """Return the total less the payments and auths"""
         return self.total - self.total_payments - self.authorized_remaining
     
-    def save(self, **kwargs):
+    def save(self, *args, **kwargs):
         """
         Copy addresses from contact. If the order has just been created, set
         the create_date.
@@ -364,7 +364,7 @@ class Purchase(models.Model):
             site = None
         if not site:
             self.site = Site.objects.get_current()
-        super(Purchase, self).save(**kwargs)
+        super(Purchase, self).save(*args, **kwargs)
         
     @property
     def total_payments(self):

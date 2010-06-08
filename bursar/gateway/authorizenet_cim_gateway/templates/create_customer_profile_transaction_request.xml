@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<createCustomerProfileTransactionRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
+{% include auth.html %}
+    <transaction>
+        <{{ action }}>
+            {% if action != 'profileTransVoid' %}
+            <amount>{{ purchase.total }}</amount>
+            {% endif %}
+            {% if purchase.tax %}
+            <tax>
+                <amount>{{ purchase.tax }}</amount>
+            </tax>
+            {% endif %}
+            {% if purchase.shipping %}
+            <shipping>
+                <amount>{{ purchase.shipping }}</amount>
+            </shipping>
+            {% endif %}
+            <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId>     
+            <customerPaymentProfileId>{{ cim_purchase.customer_profile_id }}</customerPaymentProfileId>     
+            <customerShippingAddressId>{{ cim_purchase.shipping_address_id }}</customerShippingAddressId>
+            {% if action != 'profileTransVoid' %}
+            <order>
+                <invoiceNumber>{{ purchase.orderno }}</invoiceNumber>
+            </order>
+            {% endif %}
+            {% if purchase.tax %}
+            <taxExempt>False</taxExempt>
+            {% else %}
+            <taxExempt>True</taxExempt>
+            {% endif %}
+            <cardCode>{{ purchase.credit_card.getCCV }}</cardCode>
+            {% if approval_code %}
+            <approvalCode>{{ approval_code }}</approvalCode>
+            {% endif %}
+            {% if transaction_id %}
+            <transId>{{ transaction_id }}</transId>
+            {% endif %}
+        </{{ action }}>
+    </transaction>
+{% if extra_options %}
+<extraOptions><![CDATA[{{extra_options}}]]></extraOptions>
+{% endif %}
+</createCustomerProfileTransactionRequest>

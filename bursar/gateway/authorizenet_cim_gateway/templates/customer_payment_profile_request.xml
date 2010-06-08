@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<{{ action }}CustomerPaymentProfileRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd">
+{% include auth.html %}
+    <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId> 
+    <paymentProfile> 
+        <billTo>
+            <firstName>{{ purchase.first_name }}</firstName>
+            <lastName>{{ purchase.last_name }}</lastName>
+            <address>{{ purchase.bill_street_1 }}</address>
+            <city>{{ purchase.bill_city }}</city>
+            <state>{{ purchase.bill_state }}</state>
+            <zip>{{ purchase.bill_postal_code }}</zip>
+            <country>{{ purchase.bill_country }}</country>
+        </billTo>
+        <payment>
+            <creditCard>
+                <cardNumber>{{ creditCardNumber }}</cardNumber>
+                <expirationDate>{{ purchase.credit_card.expire_year }}-{{ purchase.credit_card.expire_month }}</expirationDate>
+                <cardCode>{{ purchase.credit_card.getCCV }}</cardCode>
+            </creditCard>
+        </payment>
+    </paymentProfile> 
+    <validationMode>{{ validation_mode }}</validationMode>
+</{{ action }}CustomerPaymentProfileRequest>

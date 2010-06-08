@@ -1,0 +1,4 @@
+  <merchantAuthentication> 
+    <name>{{ api_login_id }}</name> 
+    <transactionKey>{{ transaction_key }}</transactionKey> 
+  </merchantAuthentication> 
