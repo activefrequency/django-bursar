@@ -13,6 +13,51 @@ import random
 import urllib2
 from django.template import Context, Template
 
+class AuthNetException(Exception):
+    def __str__(self):
+        return "AuthNetException, code: %s, message: %s" % self.args
+
+
+class AuthNetResponse(object):
+    SUCCESS = 'I00001'
+    GENERIC_ERROR = 'E00001'
+    PARSE_ERROR = 'E00003'
+    API_DNE_ERROR = 'E00004' #the api call/node name doesn't exist
+    TRANS_KEY_ERROR = 'E00005'
+    NAME_ERROR = 'E00006'
+    AUTH_FAIL = 'E00007'
+    INACTIVE_FAIL = 'E00008'
+    TEST_MODE = 'E00009'
+    PERM_FAIL = 'E00010'
+    ACCESS_FAIL = 'E00011'
+    FIELD_ERROR = 'E00013'
+    REQD_ERROR = 'E00014'
+    LEN_ERROR = 'E00015'
+    TYPE_ERROR = 'E00016'
+    TRANS_ERROR = 'E00027'
+    PAY_REQD_ERROR = 'E00029'
+    DUPLICATE_ERROR = 'E00039'
+    MATCH_ERROR = 'E00051' #If the customer profile ID, payment profile ID, and shipping address ID are included, they must match the original transaction. 
+
+    @staticmethod
+    def is_error(code):
+        return True if code[0] == 'E' else False
+
+    @staticmethod
+    def is_success(code):
+        return True if code == AuthNetResponse.SUCCESS else False
+
+    @staticmethod
+    def get_text(elm):
+        return ''.join([ "%s" % node.data for node in elm.childNodes if node.nodeType == node.TEXT_NODE ])
+
+    @staticmethod
+    def get_message(elm):
+        message = elm.getElementsByTagName('message')[0]
+        code = AuthNetResponse.get_text(message.getElementsByTagName('code')[0])
+        text = AuthNetResponse.get_text(message.getElementsByTagName('text')[0])
+        return (code, text)
+
 
 class PaymentProcessor(BasePaymentProcessor):
     """
@@ -63,6 +108,7 @@ class PaymentProcessor(BasePaymentProcessor):
         working_settings = {
             'CONNECTION' : 'https://api.authorize.net/xml/v1/request.api',
             'CONNECTION_TEST' : 'https://apitest.authorize.net/xml/v1/request.api',
+            'DELIM_CHAR' : ',',
             }
         working_settings.update(settings)            
         super(PaymentProcessor, self).__init__('authorizenet', working_settings)
@@ -95,7 +141,7 @@ class PaymentProcessor(BasePaymentProcessor):
         return True
 
     def can_recur_bill(self):
-        return True
+        return False 
 
     def capture_authorized_payment(self, authorization, testing=False, cim_purchase=None, amount=NOTSET):
         """Capture a single payment"""
@@ -351,33 +397,102 @@ class PaymentProcessor(BasePaymentProcessor):
             
         return results
 
-    def create_customer_profile(self, data, testing=False):
-        template = get_template('bursar/create_customer_profile_transaction_request.xml')
-        xml = t.render(Context(data))
+    def create_customer_profile(self, purchase, testing=False):
+        t = get_template('bursar/create_customer_profile_request.xml')
+        data = {'purchase' : purchase}
+        data.update(self.get_api_data())
+        xml_request = t.render(Context(data))
+        print xml_request
+        try:
+            xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
+            message = self.parse_cim_response(xml_response, 'customerProfileId')
+            return ProcessorResult(self.key, True, message)
+        except urllib2.URLError, ue:
+            self.log.error("error opening %s\n%s", data['connection'], ue)
+            return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
+        except AuthNetException as e:
+            self.log.error(e, xml_request, xml_response.toxml())
+            return ProcessorResult(self.key, False, e)
 
-    def create_payment_profile(self, data, testing=False):
-        data['action'] = 'create'
+    def delete_customer_profile(self, data, testing=False):
+        t = get_template('bursar/delete_customer_profile_request.xml')
+        data.update(self.get_api_data())
+        xml_request = t.render(Context(data))
+        print xml_request
+        try:
+            xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
+            return ProcessorResult(self.key, True, data['customer_profile_id'])
+        except urllib2.URLError, ue:
+            self.log.error("error opening %s\n%s", data['connection'], ue)
+            return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
+        except AuthNetException as e:
+            self.log.error(e, xml_request, xml_response.toxml())
+            return ProcessorResult(self.key, False, e)
+
+    def create_payment_profile(self, cim_purchase, credit_card, credit_card_number, testing=False):
+        data = {'action' : 'create', 'cc' : credit_card, 'credit_card_number' : credit_card_number, 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_payment_profile(data, testing)
 
-    def update_payment_profile(self, data, testing=False):
-        data['action'] = 'update'
+    def update_payment_profile(self, cim_purchase, testing=False):
+        data = {'action' : 'update', 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_payment_profile(data, testing)
 
     def send_payment_profile(self, data, testing=False):
-        template = get_template('bursar/create_customer_profile_transaction_request.xml')
-        xml = t.render(Context(data))
+        t = get_template('bursar/customer_payment_profile_request.xml')
+        data.update(self.get_api_data())
+        xml_request = t.render(Context(data))
+        print xml_request
+        try:
+            xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
+            message = self.parse_cim_response(xml_response, 'customerPaymentProfileId')
+            return ProcessorResult(self.key, True, message)
+        except urllib2.URLError, ue:
+            self.log.error("error opening %s\n%s", data['connection'], ue)
+            return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
+        except AuthNetException as e:
+            self.log.error(e, xml_request, xml_response.toxml())
+            return ProcessorResult(self.key, False, e)
 
-    def update_shipping_address(self, data, testing=False):
-        data['action'] = 'update'
+    def update_shipping_address(self, cim_purchase, testing=False):
+        data = {'action' : 'update', 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_shipping_address(data, testing)
 
-    def create_shipping_address(self, data, testing=False):
-        data['action'] = 'create'
+    def create_shipping_address(self, cim_purchase, testing=False):
+        data = {'action' : 'create', 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_shipping_address(data, testing)
 
     def send_shipping_address(self, data, testing=False):
-        template = get_template('bursar/customer_shipping_address_request.xml')
-        xml = t.render(Context(data))
+        t = get_template('bursar/customer_shipping_address_request.xml')
+        data.update(self.get_api_data())
+        xml_request = t.render(Context(data))
+        print xml_request
+        try:
+            xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
+            message = self.parse_cim_response(xml_response, 'customerAddressId')
+            return ProcessorResult(self.key, True, message)
+        except urllib2.URLError, ue:
+            self.log.error("error opening %s\n%s", data['connection'], ue)
+            return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
+        except AuthNetException as e:
+            self.log.error(e, xml_request, xml_response.toxml())
+            return ProcessorResult(self.key, False, e)
+
+    def parse_cim_response(self, xml_dom, tag):
+        code, text = AuthNetResponse.get_message(xml_dom)
+        if AuthNetResponse.is_success(code):
+            return AuthNetResponse.get_text(xml_dom.getElementsByTagName(tag)[0])
+        else:
+            raise AuthNetException(code, text)
+
+    def get_api_data(self):
+        if self.is_live():
+            conn = self.settings["CONNECTION"]
+            self.log_extra('Using live connection.')
+        else:
+            testflag = 'TRUE'
+            conn = self.settings["CONNECTION_TEST"]
+            self.log_extra('Using test connection.')
+        return { 'connection' : conn, 'api_login_id' : self.settings['API_LOGIN_KEY'], 'transaction_key' : self.settings['TRANKEY'] }
 
     def cim_post(self, url, xml_request):
         headers = { 'Content-Type' : 'text/xml' }
@@ -386,7 +501,7 @@ class PaymentProcessor(BasePaymentProcessor):
         all_results = f.read()
         self.log_extra('Authorize response: %s', all_results)
         return parseString(all_results)
-        
+
     def send_post(self, data, action, testing=False, cim_purchase=None, amount=NOTSET):
         """Execute the post to Authorize Net.
         
@@ -400,20 +515,28 @@ class PaymentProcessor(BasePaymentProcessor):
         assert(cim_purchase)
         self.log.info("About to send a request to authorize.net: %(connection)s\n%(logPostString)s", data)
 
-        api_data = { 'api_login_id' : self.settings['API_LOGIN_KEY'], 'transaction_key' : self.settings['TRANKEY'] }
+        data.update(self.get_api_data())
         object_data = { 'action' : self.TRANS_XML[action][1], 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
-        data.update(api_data)
         data.update(object_data)
 
         t = get_template('bursar/create_customer_profile_transaction_request.xml')
         xml_request = t.render(Context(data))
         print xml_request
         try:
-            response = self.cim_post(url=data['connection'], xml_request=xml_request)
-            print response
+            xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
+            data_response = self.parse_cim_response(xml_response, 'directResponse')
         except urllib2.URLError, ue:
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
+        except AuthNetException as e:
+            self.log.error("reponse error %s\n%s", xml_request, xml_response.toxml(), e)
+            return ProcessorResult(self.key, False, _('Response contained error code %s' % e))
+
+        parsed_results = data_response.split(self.settings['DELIM_CHAR'])
+        response_code = parsed_results[0]
+        reason_code = parsed_results[1]
+        response_text = parsed_results[3]
+        transaction_id = parsed_results[6]
             
         success = response_code == '1'
         if amount == NOTSET:

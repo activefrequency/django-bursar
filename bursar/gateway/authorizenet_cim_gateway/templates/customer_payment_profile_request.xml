@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <{{ action }}CustomerPaymentProfileRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd">
-{% include auth.html %}
+{% include "bursar/auth.xml" %}
     <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId> 
     <paymentProfile> 
         <billTo>
@@ -14,11 +14,15 @@
         </billTo>
         <payment>
             <creditCard>
-                <cardNumber>{{ creditCardNumber }}</cardNumber>
-                <expirationDate>{{ purchase.credit_card.expire_year }}-{{ purchase.credit_card.expire_month }}</expirationDate>
-                <cardCode>{{ purchase.credit_card.getCCV }}</cardCode>
+                <cardNumber>{{ credit_card_number }}</cardNumber>
+                <expirationDate>{{ cc.expire_year }}-{{ cc.expire_month }}</expirationDate>
+                {% if cc.getCCV %}
+                <cardCode>{{ cc.getCCV }}</cardCode>
+                {% endif %}
             </creditCard>
         </payment>
     </paymentProfile> 
+    {% if validation_mode %}
     <validationMode>{{ validation_mode }}</validationMode>
+    {% endif %}
 </{{ action }}CustomerPaymentProfileRequest>

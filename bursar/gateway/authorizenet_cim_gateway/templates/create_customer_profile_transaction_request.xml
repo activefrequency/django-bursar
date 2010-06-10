@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <createCustomerProfileTransactionRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
-{% include auth.html %}
+{% include "bursar/auth.xml" %}
     <transaction>
         <{{ action }}>
             {% if action != 'profileTransVoid' %}

@@ -16,7 +16,7 @@ def make_test_purchase(payment={}, **kwargs):
         "first_name": 'Mister',
         "last_name": 'Tester',
         "orderno" : "test%03i" % random.randrange(1,100),
-        "email" : "test@example.com",
+        "email" : "test@email.com",
         "phone" : "555-555-1234",
         "ship_street1" : "123 Test St.",
         "ship_city" : "Testington",

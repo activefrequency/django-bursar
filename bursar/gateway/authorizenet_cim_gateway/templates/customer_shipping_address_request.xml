@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <{{ action }}CustomerShippingAddressRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
-{% include auth.html %}
+{% include "bursar/auth.xml" %}
     <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId>     
     <address>
-        <firstName>{{ purchase.ship_first_name }}</firstName>
-        <lastName>{{ purchase.ship_last_name }}</lastName>
+        <firstName>{{ purchase.first_name }}</firstName>
+        <lastName>{{ purchase.last_name }}</lastName>
         <address>{{ purchase.ship_street1 }}</address>
         <city>{{ purchase.ship_city }}</city>
         <state>{{ purchase.ship_state }}</state>

@@ -7,6 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 import logging
 import os
 
+LOG_FILENAME = '/home/Obo/Sites/active_frequency/lenspro/.server.log'
 log = logging.getLogger('bursar.gateway.base')
 
 NOTSET = object()

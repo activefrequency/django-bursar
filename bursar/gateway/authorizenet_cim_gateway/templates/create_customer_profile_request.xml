@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <createCustomerProfileRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
-{% include auth.html %}
+{% include "bursar/auth.xml" %}
     <profile>
-        {% if email %}
+        {% if purchase.email %}
         <email>{{ purchase.email }}</email>
         {% else %}
         <description>This is anonymous user</description>
