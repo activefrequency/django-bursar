@@ -96,13 +96,13 @@ class PaymentProcessor(BasePaymentProcessor):
     TRANS_AUTH = 2
     TRANS_AUTHCAPTURE = 3
     TRANS_CAPTURE = 4
+    TRANS_REFUND = 5
 
-    TRANS_XML = (
-        (TRANS_VOID, "profileTransVoid"),
-        (TRANS_AUTH, "profileTransAuthOnly"),
-        (TRANS_AUTHCAPTURE, "profileTransAuthCapture"),
-        (TRANS_CAPTURE, "profileTransPriorAuthCapture"),
-    )
+    TRANS_XML = {TRANS_VOID : "profileTransVoid",
+        TRANS_AUTH : "profileTransAuthOnly",
+        TRANS_AUTHCAPTURE : "profileTransAuthCapture",
+        TRANS_CAPTURE : "profileTransPriorAuthCapture",
+        TRANS_REFUND : "profileTransRefund",}
 
     def __init__(self, settings={}):
         working_settings = {
@@ -114,7 +114,7 @@ class PaymentProcessor(BasePaymentProcessor):
         super(PaymentProcessor, self).__init__('authorizenet', working_settings)
         self.require_settings('LOGIN', 'STORE_NAME', 'TRANKEY', 'API_LOGIN_KEY')
 
-    def authorize_payment(self, cim_purchase=None, amount=NOTSET, testing=False):
+    def authorize_payment(self, cim_purchase=None, testing=False):
         """Authorize a single payment.
         
         Returns: ProcessorResult
@@ -124,16 +124,16 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log_extra('%s is paid in full, no authorization attempted.', purchase)
             results = ProcessorResult(self.key, True, _("No charge needed, paid in full."))
         else:
-            if amount == NOTSET:
-                try:
-                    pending = cim_purchase.purchase.get_pending(self.key)
-                    amount = pending.amount
-                except PaymentPending.DoesNotExist:
-                    amount = cim_purchase.purchase.remaining
+            data={}
+            try:
+                pending = cim_purchase.purchase.get_pending(self.key)
+                amount = pending.amount
+                data['pending'] = pending
+            except PaymentPending.DoesNotExist:
+                amount = cim_purchase.purchase.total
             self.log_extra('Authorizing payment of %s for %s', amount, cim_purchase)
 
-            standard = self.get_standard_charge_data(authorize=True, cim_purchase=cim_purchase, amount=amount)
-            results = self.send_post(standard, self.TRANS_AUTH, testing, cim_purchase=cim_purchase)
+            results = self.send_post(data, self.TRANS_AUTH, testing, cim_purchase=cim_purchase)
 
         return results
 
@@ -143,24 +143,27 @@ class PaymentProcessor(BasePaymentProcessor):
     def can_recur_bill(self):
         return False 
 
-    def capture_authorized_payment(self, authorization, testing=False, cim_purchase=None, amount=NOTSET):
+    def get_prior_approval_code(self, authorization):
+        pass
+
+    def capture_authorized_payment(self, authorization, testing=False, cim_purchase=None):
         """Capture a single payment"""
         assert(cim_purchase)
         if cim_purchase.purchase.authorized_remaining == Decimal('0.00'):
             self.log_extra('No remaining authorizations on %s', cim_purchase)
             return ProcessorResult(self.key, True, _("Already complete"))
 
+        amount = authorization.amount
         self.log_extra('Capturing Authorization #%i of %s', authorization.id, amount)
-        if amount==NOTSET:
-            amount = authorization.amount
-        data = self.get_prior_auth_data(authorization, amount=amount)
+        trans_id = self.get_prior_trans_id(authorization)
         results = None
-        if data:
+        if trans_id:
+            data = {'transaction_id' : trans_id, 'authorization' : authorization}
             results = self.send_post(data, self.TRANS_CAPTURE, testing, cim_purchase=cim_purchase)
         
         return results
         
-    def capture_payment(self, testing=False, cim_purchase=None, amount=NOTSET):
+    def capture_payment(self, testing=False, cim_purchase=None):
         """Process payments without an authorization step."""
         assert(cim_purchase)
 
@@ -171,213 +174,11 @@ class PaymentProcessor(BasePaymentProcessor):
         else:
             self.log_extra('Capturing payment for %s', cim_purchase)
             
-            standard = self.get_standard_charge_data(amount=amount, cim_purchase=cim_purchase)
-            results = self.send_post(standard, self.TRANS_AUTHCAPTURE, testing, cim_purchase=cim_purchase)
+            data = {}
+            results = self.send_post(data, self.TRANS_AUTHCAPTURE, testing, cim_purchase=cim_purchase)
             
         return results
 
-    def get_prior_auth_data(self, authorization, amount=NOTSET):
-        """Build the dictionary needed to process a prior auth capture."""
-        trans = {'authorization' : authorization}
-        remaining = authorization.remaining
-        if amount == NOTSET or amount > remaining:
-            if amount != NOTSET:
-                self.log_extra('Adjusting auth amount from %s to %s', amount, remaining)
-            amount = remaining
-        
-        balance = trunc_decimal(amount, 2)
-        trans['amount'] = amount
-        
-        if self.is_live():
-            conn = self.settings["CONNECTION"]
-            self.log_extra('Using live connection.')
-        else:
-            testflag = 'TRUE'
-            conn = self.settings["CONNECTION_TEST"]
-            self.log_extra('Using test connection.')
-            
-        if self.settings["SIMULATE"]:
-            testflag = 'TRUE'
-        else:
-            testflag = 'FALSE'
-
-        trans['connection'] = conn
-
-        trans['configuration'] = {
-            'x_login' : self.settings["LOGIN"],
-            'x_tran_key' : self.settings["TRANKEY"],
-            'x_version' : '3.1',
-            'x_relay_response' : 'FALSE',
-            'x_test_request' : testflag,
-            'x_delim_data' : 'TRUE',
-            'x_delim_char' : '|',
-            'x_type': 'PRIOR_AUTH_CAPTURE',
-            'x_trans_id' : authorization.transaction_id
-            }
-        
-        self.log_extra('prior auth configuration: %s', trans['configuration'])
-                
-        trans['transactionData'] = {
-            'x_amount' : balance,
-            }
-
-        part1 = urlencode(trans['configuration']) 
-        postdata = part1 + "&" + urlencode(trans['transactionData'])
-        trans['postString'] = postdata
-        
-        self.log_extra('prior auth poststring: %s', postdata)
-        trans['logPostString'] = postdata
-        
-        return trans
-        
-        
-    def get_void_auth_data(self, authorization):
-        """Build the dictionary needed to process a prior auth release."""
-        trans = {
-            'authorization' : authorization,
-            'amount' : Decimal('0.00'),
-        }
-
-        if self.is_live():
-            conn = self.settings['CONNECTION']
-            self.log_extra('Using live connection.')
-        else:
-            testflag = 'TRUE'
-            conn = self.settings["CONNECTION_TEST"]
-            self.log_extra('Using test connection.')
-
-        if self.settings['SIMULATE']:
-            testflag = 'TRUE'
-        else:
-            testflag = 'FALSE'
-
-        trans['connection'] = conn
-
-        trans['configuration'] = {
-            'x_login' : self.settings["LOGIN"],
-            'x_tran_key' : self.settings["TRANKEY"],
-            'x_version' : '3.1',
-            'x_relay_response' : 'FALSE',
-            'x_test_request' : testflag,
-            'x_delim_data' : 'TRUE',
-            'x_delim_char' : '|',
-            'x_type': 'VOID',
-            'x_trans_id' : authorization.transaction_id
-            }
-
-        self.log_extra('void auth configuration: %s', trans['configuration'])
-
-        postdata = urlencode(trans['configuration']) 
-        trans['postString'] = postdata
-
-        self.log_extra('void auth poststring: %s', postdata)
-        trans['logPostString'] = postdata
-
-        return trans
-
-        
-    def get_standard_charge_data(self, cim_purchase=None, amount=NOTSET, authorize=False):
-        """Build the dictionary needed to process a credit card charge"""
-        assert(cim_purchase)
-        trans = {}
-        if amount == NOTSET:
-            amount = cim_purchase.purchase.total
-            
-        balance = trunc_decimal(amount, 2)
-        trans['amount'] = balance
-        
-        if self.is_live():
-            conn = self.settings['CONNECTION']
-            self.log_extra('Using live connection.')
-        else:
-            testflag = 'TRUE'
-            conn = self.settings['CONNECTION_TEST']
-            self.log_extra('Using test connection.')
-            
-        if self.settings['SIMULATE']:
-            testflag = 'TRUE'
-        else:
-            testflag = 'FALSE'
-
-        trans['connection'] = conn
-            
-        trans['authorize_only'] = authorize
-
-        if not authorize:
-            transaction_type = 'AUTH_CAPTURE'
-        else:
-            transaction_type = 'AUTH_ONLY'
-                        
-        trans['configuration'] = {
-            'x_login' : self.settings['LOGIN'],
-            'x_tran_key' : self.settings['TRANKEY'],
-            'x_version' : '3.1',
-            'x_relay_response' : 'FALSE',
-            'x_test_request' : testflag,
-            'x_delim_data' : 'TRUE',
-            'x_delim_char' : '|',
-            'x_type': transaction_type,
-            'x_method': 'CC',
-            }
-        
-        self.log_extra('standard charges configuration: %s', trans['configuration'])
-        
-        trans['custBillData'] = {
-            'x_first_name' : cim_purchase.purchase.first_name,
-            'x_last_name' : cim_purchase.purchase.last_name,
-            'x_address': cim_purchase.purchase.full_bill_street,
-            'x_city': cim_purchase.purchase.bill_city,
-            'x_state' : cim_purchase.purchase.bill_state,
-            'x_zip' : cim_purchase.purchase.bill_postal_code,
-            'x_country': cim_purchase.purchase.bill_country,
-            'x_phone' : cim_purchase.purchase.phone,
-            'x_email' : cim_purchase.purchase.email,
-            }
-    
-        self.log_extra('standard charges configuration: %s', trans['custBillData'])
-        
-        invoice = "%s" % cim_purchase.purchase.orderno
-        failct = cim_purchase.purchase.paymentfailures.count()
-        if failct > 0:
-            invoice = "%s_%i" % (invoice, failct)
-
-        if not self.is_live():
-            # add random test id to this, for testing repeatability
-            invoice = "%s_test_%s_%i" % (invoice,  datetime.now().strftime('%m%d%y'), random.randint(1,1000000))
-        
-        card = cim_purchase.purchase.credit_card
-        cc = card.decryptedCC
-        ccv = card.ccv
-        if not self.is_live() and cc == '4222222222222':
-            if ccv == '222':
-                self.log_extra('Setting a bad ccv number to force an error')
-                ccv = '1'
-            else:
-                self.log_extra('Setting a bad credit card number to force an error')
-                cc = '1234'
-        trans['transactionData'] = {
-            'x_amount' : balance,
-            'x_card_num' : cc,
-            'x_exp_date' : card.expirationDate,
-            'x_card_code' : ccv,
-            'x_invoice_num' : invoice
-            }
-
-        part1 = urlencode(trans['configuration']) + "&"
-        part2 = "&" + urlencode(trans['custBillData'])
-        trans['postString'] = part1 + urlencode(trans['transactionData']) + part2
-        
-        redactedData = {
-            'x_amount' : balance,
-            'x_card_num' : card.display_cc,
-            'x_exp_date' : card.expirationDate,
-            'x_card_code' : "REDACTED",
-            'x_invoice_num' : invoice
-        }
-        self.log_extra('standard charges transactionData: %s', redactedData)
-        trans['logPostString'] = part1 + urlencode(redactedData) + part2
-        
-        return trans
 
     def create_pending_payment(self, cim_purchase=None, amount=NOTSET):
         return super(PaymentProcessor, self).create_pending_payment(purchase=cim_purchase.purchase, amount=amount)
@@ -385,10 +186,11 @@ class PaymentProcessor(BasePaymentProcessor):
     def release_authorized_payment(self, cim_purchase=None, auth=None, testing=False):
         """Release a previously authorized payment."""
         assert(cim_purchase)
-        self.log_extra('Releasing Authorization #%i for %s', auth.id, cim_purchase)
-        data = self.get_void_auth_data(auth)
+        self.log_extra('Releasing Authorization #%i for %s', auth.id, cim_purchase.purchase)
+        trans_id = self.get_prior_trans_id(auth)
         results = None
-        if data:
+        if trans_id:
+            data = {'transaction_id' : trans_id}
             results = self.send_post(data, self.TRANS_VOID, testing, cim_purchase=cim_purchase)
             
         if results.success:
@@ -397,12 +199,23 @@ class PaymentProcessor(BasePaymentProcessor):
             
         return results
 
+    def refund_payment(self, cim_purchase=None, auth=None):
+        """ Perform a refund """
+        assert(cim_purchase)
+        self.log_extra('Performing refund on #%i for %s', auth.id, cim_purchase.purchase)
+        trans_id = self.get_prior_trans_id(auth)
+        results = None
+        if trans_id:
+            data = {'transaction_id' : trans_id}
+            results = self.send_post(data, self.TRANS_REFUND, testing, cim_purchase=cim_purchase)
+            
+        return results
+
     def create_customer_profile(self, purchase, testing=False):
         t = get_template('bursar/create_customer_profile_request.xml')
         data = {'purchase' : purchase}
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
-        print xml_request
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
             message = self.parse_cim_response(xml_response, 'customerProfileId')
@@ -418,7 +231,6 @@ class PaymentProcessor(BasePaymentProcessor):
         t = get_template('bursar/delete_customer_profile_request.xml')
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
-        print xml_request
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
             return ProcessorResult(self.key, True, data['customer_profile_id'])
@@ -441,7 +253,6 @@ class PaymentProcessor(BasePaymentProcessor):
         t = get_template('bursar/customer_payment_profile_request.xml')
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
-        print xml_request
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
             message = self.parse_cim_response(xml_response, 'customerPaymentProfileId')
@@ -465,7 +276,6 @@ class PaymentProcessor(BasePaymentProcessor):
         t = get_template('bursar/customer_shipping_address_request.xml')
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
-        print xml_request
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
             message = self.parse_cim_response(xml_response, 'customerAddressId')
@@ -502,11 +312,11 @@ class PaymentProcessor(BasePaymentProcessor):
         self.log_extra('Authorize response: %s', all_results)
         return parseString(all_results)
 
-    def send_post(self, data, action, testing=False, cim_purchase=None, amount=NOTSET):
+    def send_post(self, data, action, testing=False, cim_purchase=None):
         """Execute the post to Authorize Net.
         
         Params:
-        - data: dictionary as returned by get_standard_charge_data
+        - data: dictionary which may contain 'transaction_id', 'extra_options', 'authorization', or 'pending'
         - testing: if true, then don't record the payment
         
         Returns:
@@ -516,12 +326,11 @@ class PaymentProcessor(BasePaymentProcessor):
         self.log.info("About to send a request to authorize.net: %(connection)s\n%(logPostString)s", data)
 
         data.update(self.get_api_data())
-        object_data = { 'action' : self.TRANS_XML[action][1], 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
+        object_data = { 'action' : self.TRANS_XML[action], 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         data.update(object_data)
 
         t = get_template('bursar/create_customer_profile_transaction_request.xml')
         xml_request = t.render(Context(data))
-        print xml_request
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
             data_response = self.parse_cim_response(xml_response, 'directResponse')
@@ -539,20 +348,16 @@ class PaymentProcessor(BasePaymentProcessor):
         transaction_id = parsed_results[6]
             
         success = response_code == '1'
-        if amount == NOTSET:
-            amount = data['amount']
+        amount = cim_purchase.purchase.total
 
         payment = None
         if success and not testing:
-            if data.get('authorize_only', False):
+            if action == self.TRANS_AUTH:
                 self.log_extra('Success, recording authorization')
                 payment = self.record_authorization(cim_purchase=cim_purchase, amount=amount, 
                     transaction_id=transaction_id, reason_code=reason_code)
             else:
-                if amount <= 0:
-                    self.log_extra('Success, recording refund')
-                else:
-                    self.log_extra('Success, recording payment')
+                self.log_extra('Success, recording payment')
                 authorization = data.get('authorization', None)
                 payment = self.record_payment(cim_purchase=cim_purchase, amount=amount, 
                     transaction_id=transaction_id, reason_code=reason_code, authorization=authorization)

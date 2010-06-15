@@ -22,6 +22,7 @@ minimum, you must specify the LOGIN, TRANKEY, and STORE_NAME."""
 
 class TestGateway(TestCase):
     def setUp(self):
+        self.cim_purchase = None
         global SKIP_TESTS
         self.client = Client()
         if not SKIP_TESTS:
@@ -41,7 +42,9 @@ class TestGateway(TestCase):
             }
 
     def tearDown(self):
-        pass
+        if self.cim_purchase:
+            data = {'customer_profile_id' : self.cim_purchase.customer_profile_id}
+            self.gateway.delete_customer_profile(data)
 
     def customer_profile(self, purchase):
         result = self.gateway.create_customer_profile(purchase)
@@ -64,99 +67,103 @@ class TestGateway(TestCase):
         cim_purchase.shipping_address_id = result.message
         return cim_purchase
 
-    def cim_setup(self):
-        purchase = make_test_purchase(sub_total=Decimal('20.00'), email="jobelenus+af+lenspro@gmail.com")
+    def cim_setup(self, **kwargs):
+        kwargs.update({'email' : 'jobelenus+af+lenspro@gmail'})
+        purchase = make_test_purchase(**kwargs)
         cim = self.customer_profile(purchase)
         cim = self.payment_profile(cim)
         cim = self.shipping(cim)
-        data = {'customer_profile_id' : cim.customer_profile_id}
-        self.gateway.delete_customer_profile(data)
         return cim
 
     def test_deletion(self):
-        data = {'customer_profile_id' : 1775467}
+        data = {'customer_profile_id' : 1775650}
         self.gateway.delete_customer_profile(data)
 
     def test_profile_setup(self):
-        cim = self.cim_setup()
-        #print cim.customer_profile_id
-        #print cim.payment_profile_id
-        #print cim.shipping_address_id
-        self.assertEqual(isinstance(cim.customer_profile_id, AuthNetException), False)
-        self.assertEqual(isinstance(cim.payment_profile_id, AuthNetException), False)
-        self.assertEqual(isinstance(cim.shipping_address_id, AuthNetException), False)
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
+        #print cim_purchase.customer_profile_id
+        #print cim_purchase.payment_profile_id
+        #print cim_purchase.shipping_address_id
+        self.assertEqual(isinstance(self.cim_purchase.customer_profile_id, AuthNetException), False)
+        self.assertEqual(isinstance(self.cim_purchase.payment_profile_id, AuthNetException), False)
+        self.assertEqual(isinstance(self.cim_purchase.shipping_address_id, AuthNetException), False)
         
     def test_authorize(self):
         if SKIP_TESTS: return
-        cim_purchase = self.cim_setup()
-        result = self.gateway.authorize_payment(cim_purchase=cim_purchase)
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
+        result = self.gateway.authorize_payment(cim_purchase=self.cim_purchase)
+        print result.message
         self.assert_(result.success)
         payment = result.payment
         self.assertEqual(payment.amount, Decimal('20.00'))
-        self.assertEqual(cim_purchase.purchase.total_payments, Decimal('0.00'))
-        self.assertEqual(cim_purchase.purchase.authorized_remaining, Decimal('20.00'))
+        self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('0.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('20.00'))
 
     def test_pending_authorize(self):
         if SKIP_TESTS: return
-        cim_purchase = self.cim_setup()
-        self.assert_(cim_purchase.purchase.credit_card)
-        pending = self.gateway.create_pending_payment(cim_purchase)
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
+        self.assert_(self.cim_purchase.purchase.credit_card)
+        pending = self.gateway.create_pending_payment(self.cim_purchase)
         self.assertEqual(pending.amount, Decimal('20.00'))
-        result = self.gateway.authorize_payment(cim_purchase=cim_purchase)
+        result = self.gateway.authorize_payment(cim_purchase=self.cim_purchase)
+        print result.message
         self.assert_(result.success)
         payment = result.payment
         self.assertEqual(payment.amount, Decimal('20.00'))
-        self.assertEqual(cim_purchase.purchase.total_payments, Decimal('0.00'))
-        self.assertEqual(cim_purchase.purchase.authorized_remaining, Decimal('20.00'))
+        self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('0.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('20.00'))
 
     def test_capture(self):
         """Test making a direct payment using AUTHORIZENET."""
         if SKIP_TESTS: return
-        cim_purchase = self.cim_setup()
-        self.assertEqual(cim_purchase.purchase.total, Decimal('10.00'))
-        result = self.gateway.capture_payment(cim_purchase=cim_purchase)
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('10.00'))
+        self.assertEqual(self.cim_purchase.purchase.total, Decimal('10.00'))
+        result = self.gateway.capture_payment(cim_purchase=self.cim_purchase)
+        print result.message
         self.assert_(result.success)
         payment = result.payment
         self.assertEqual(payment.amount, Decimal('10.00'))
-        self.assertEqual(cim_purchase.purchase.total_payments, Decimal('10.00'))
-        self.assertEqual(cim_purchase.purchase.authorized_remaining, Decimal('0.00'))
+        self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('10.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('0.00'))
 
     def test_authorize_multiple(self):
         """Test making multiple authorization using AUTHORIZENET."""
         if SKIP_TESTS: return
-        cim_purchase = self.cim_setup()
-        self.assertEqual(cim_purchase.purchase.total, Decimal('100.00'))
-        pending = self.gateway.create_pending_payment(cim_purchase=cim_purchase, amount=Decimal('25.00'))
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('100.00'))
+        self.assertEqual(self.cim_purchase.purchase.total, Decimal('100.00'))
+        pending = self.gateway.create_pending_payment(cim_purchase=self.cim_purchase, amount=Decimal('25.00'))
         self.assertEqual(pending.amount, Decimal('25.00'))
-        self.assertEqual(cim_purchase.purchase.paymentspending.count(), 1)
-        pending2 = cim_purchase.purchase.get_pending(self.gateway.key)
+        self.assertEqual(self.cim_purchase.purchase.paymentspending.count(), 1)
+        pending2 = self.cim_purchase.purchase.get_pending(self.gateway.key)
         self.assertEqual(pending, pending2)
-        result = self.gateway.authorize_payment(cim_purchase)
+        result = self.gateway.authorize_payment(self.cim_purchase)
+        print result.message
         self.assertEqual(result.success, True)
-        self.assertEqual(cim_purchase.purchase.authorized_remaining, Decimal('25.00'))
-        self.assertEqual(cim_purchase.purchase.remaining, Decimal('75.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('25.00'))
+        self.assertEqual(self.cim_purchase.purchase.remaining, Decimal('75.00'))
 
-        self.gateway.create_pending_payment(cim_purchase=cim_purchase, amount=Decimal('75.00'))
-        result = self.gateway.authorize_payment(cim_purchase)
+        self.gateway.create_pending_payment(cim_purchase=self.cim_purchase, amount=Decimal('75.00'))
+        result = self.gateway.authorize_payment(self.cim_purchase)
+        print result.message
         self.assert_(result.success)
         auth = result.payment
         self.assertEqual(auth.amount, Decimal('75.00'))
-        self.assertEqual(cim_purchase.purchase.authorized_remaining, Decimal('100.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('100.00'))
 
-        results = self.gateway.capture_authorized_payments(cim_purchase)
+        results = self.gateway.capture_authorized_payments(self.cim_purchase)
         self.assertEqual(len(results), 2)
         r1 = results[0]
         r2 = results[1]
         self.assertEqual(r1.success, True)
         self.assertEqual(r2.success, True)
-        self.assertEqual(cim_purchase.purchase.total_payments, Decimal('100'))
+        self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('100'))
 
     def test_multiple_pending(self):
         """Test that creating a second pending payment deletes the first one."""
         if SKIP_TESTS: return
-        cim_purchase = self.cim_setup()
-        self.assertEqual(cim_purchase.purchase.total, Decimal('125.00'))
-        pend1 = self.gateway.create_pending_payment(cim_purchase=cim_purchase, amount=cim_purchase.purchase.total)
-        pend2 = self.gateway.create_pending_payment(cim_purchase=cim_purchase, amount=cim_purchase.purchase.total)
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('125.00'))
+        self.assertEqual(self.cim_purchase.purchase.total, Decimal('125.00'))
+        pend1 = self.gateway.create_pending_payment(cim_purchase=self.cim_purchase, amount=self.cim_purchase.purchase.total)
+        pend2 = self.gateway.create_pending_payment(cim_purchase=self.cim_purchase, amount=self.cim_purchase.purchase.total)
     
-        self.assertEqual(cim_purchase.purchase.paymentspending.count(), 1)
+        self.assertEqual(self.cim_purchase.purchase.paymentspending.count(), 1)

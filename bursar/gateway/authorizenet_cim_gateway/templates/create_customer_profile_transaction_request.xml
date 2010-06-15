@@ -4,7 +4,13 @@
     <transaction>
         <{{ action }}>
             {% if action != 'profileTransVoid' %}
+                {% if authorization %}
+            <amount>{{ authorization.amount }}</amount>
+                {% else %}{%if pending %}
+            <amount>{{ pending.amount }}</amount>
+                {% else %}
             <amount>{{ purchase.total }}</amount>
+                {% endif %}{% endif %}
             {% endif %}
             {% if purchase.tax %}
             <tax>
@@ -19,19 +25,18 @@
             <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId>     
             <customerPaymentProfileId>{{ cim_purchase.customer_profile_id }}</customerPaymentProfileId>     
             <customerShippingAddressId>{{ cim_purchase.shipping_address_id }}</customerShippingAddressId>
-            {% if action != 'profileTransVoid' %}
+            {% if action != 'profileTransVoid' and action != 'profileTransPriorAuthCapture'%}
             <order>
                 <invoiceNumber>{{ purchase.orderno }}</invoiceNumber>
             </order>
-            {% endif %}
-            {% if purchase.tax %}
-            <taxExempt>False</taxExempt>
-            {% else %}
-            <taxExempt>True</taxExempt>
-            {% endif %}
+                {% if purchase.tax %}
+            <taxExempt>false</taxExempt>
+                {% else %}
+            <taxExempt>true</taxExempt>
+                {% endif %}
+                {% if purchase.credit_card.getCCV %}
             <cardCode>{{ purchase.credit_card.getCCV }}</cardCode>
-            {% if approval_code %}
-            <approvalCode>{{ approval_code }}</approvalCode>
+                {% endif %}
             {% endif %}
             {% if transaction_id %}
             <transId>{{ transaction_id }}</transId>
