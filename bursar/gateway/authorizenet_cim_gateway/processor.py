@@ -133,7 +133,7 @@ class PaymentProcessor(BasePaymentProcessor):
                 amount = cim_purchase.purchase.total
             self.log_extra('Authorizing payment of %s for %s', amount, cim_purchase)
 
-            results = self.send_post(data, self.TRANS_AUTH, testing, cim_purchase=cim_purchase)
+            results = self.send_post(data, self.TRANS_AUTH, cim_purchase, amount, testing)
 
         return results
 
@@ -143,10 +143,20 @@ class PaymentProcessor(BasePaymentProcessor):
     def can_recur_bill(self):
         return False 
 
-    def get_prior_approval_code(self, authorization):
-        pass
+    def capture_authorized_payments(self, cim_purchase=None):
+        """Capture all outstanding payments for this processor.  This is usually called by a 
+        listener which watches for a 'shipped' status change on the Order."""
+        assert(cim_purchase)
+        results = []
+        if self.can_authorize():
+            auths = cim_purchase.purchase.authorizations.filter(method__exact=self.key, complete=False)
+            self.log_extra('Capturing %i %s authorizations for purchase on order #%s', auths.count(), self.key, cim_purchase.purchase.orderno)
+            for auth in auths:
+                results.append(self.capture_authorized_payment(auth, cim_purchase))
+                
+        return results
 
-    def capture_authorized_payment(self, authorization, testing=False, cim_purchase=None):
+    def capture_authorized_payment(self, authorization, cim_purchase=None, testing=False):
         """Capture a single payment"""
         assert(cim_purchase)
         if cim_purchase.purchase.authorized_remaining == Decimal('0.00'):
@@ -154,28 +164,35 @@ class PaymentProcessor(BasePaymentProcessor):
             return ProcessorResult(self.key, True, _("Already complete"))
 
         amount = authorization.amount
+
+        remaining = authorization.remaining
+        if amount == NOTSET or amount > remaining:
+            if amount != NOTSET:
+                self.log_extra('Adjusting auth amount from %s to %s', amount, remaining)
+            amount = trunc_decimal(remaining, 2)
+
         self.log_extra('Capturing Authorization #%i of %s', authorization.id, amount)
-        trans_id = self.get_prior_trans_id(authorization)
         results = None
-        if trans_id:
-            data = {'transaction_id' : trans_id, 'authorization' : authorization}
-            results = self.send_post(data, self.TRANS_CAPTURE, testing, cim_purchase=cim_purchase)
+        if authorization.transaction_id:
+            data = {'transaction_id' : authorization.transaction_id, 'authorization' : authorization}
+            results = self.send_post(data, self.TRANS_CAPTURE, cim_purchase, amount, testing)
         
         return results
         
-    def capture_payment(self, testing=False, cim_purchase=None):
+    def capture_payment(self, cim_purchase=None, testing=False):
         """Process payments without an authorization step."""
         assert(cim_purchase)
 
         if cim_purchase.purchase.remaining == Decimal('0.00'):
             self.log_extra('%s is paid in full, no capture attempted.', cim_purchase)
             results = ProcessorResult(self.key, True, _("No charge needed, paid in full."))
-            self.record_payment(cim_purchase=cim_purchase)
+            self.record_payment(purchase=cim_purchase.purchase)
         else:
+            amount = cim_purchase.purchase.remaining
             self.log_extra('Capturing payment for %s', cim_purchase)
             
             data = {}
-            results = self.send_post(data, self.TRANS_AUTHCAPTURE, testing, cim_purchase=cim_purchase)
+            results = self.send_post(data, self.TRANS_AUTHCAPTURE, cim_purchase, amount, testing)
             
         return results
 
@@ -187,11 +204,10 @@ class PaymentProcessor(BasePaymentProcessor):
         """Release a previously authorized payment."""
         assert(cim_purchase)
         self.log_extra('Releasing Authorization #%i for %s', auth.id, cim_purchase.purchase)
-        trans_id = self.get_prior_trans_id(auth)
         results = None
-        if trans_id:
-            data = {'transaction_id' : trans_id}
-            results = self.send_post(data, self.TRANS_VOID, testing, cim_purchase=cim_purchase)
+        if auth.transcation_id:
+            data = {'transaction_id' : auth.transaction_id}
+            results = self.send_post(data, self.TRANS_VOID, cim_purchase)
             
         if results.success:
             auth.complete = True
@@ -203,11 +219,10 @@ class PaymentProcessor(BasePaymentProcessor):
         """ Perform a refund """
         assert(cim_purchase)
         self.log_extra('Performing refund on #%i for %s', auth.id, cim_purchase.purchase)
-        trans_id = self.get_prior_trans_id(auth)
         results = None
-        if trans_id:
-            data = {'transaction_id' : trans_id}
-            results = self.send_post(data, self.TRANS_REFUND, testing, cim_purchase=cim_purchase)
+        if authorization.transaction_id:
+            data = {'transaction_id' : authorization.transaction_id}
+            results = self.send_post(data, self.TRANS_REFUND, cim_purchase)
             
         return results
 
@@ -312,11 +327,11 @@ class PaymentProcessor(BasePaymentProcessor):
         self.log_extra('Authorize response: %s', all_results)
         return parseString(all_results)
 
-    def send_post(self, data, action, testing=False, cim_purchase=None):
+    def send_post(self, data, action, cim_purchase=None, amount=None, testing=False):
         """Execute the post to Authorize Net.
         
         Params:
-        - data: dictionary which may contain 'transaction_id', 'extra_options', 'authorization', or 'pending'
+        - data: dictionary which may contain 'transaction_id', 'extra_options', or amount 
         - testing: if true, then don't record the payment
         
         Returns:
@@ -324,6 +339,12 @@ class PaymentProcessor(BasePaymentProcessor):
         """
         assert(cim_purchase)
         self.log.info("About to send a request to authorize.net: %(connection)s\n%(logPostString)s", data)
+
+        if action is not self.TRANS_VOID:
+            if amount is None:
+                amount = cim_purchase.purchase.total
+            if not data.has_key('amount'):
+                data['amount'] = amount
 
         data.update(self.get_api_data())
         object_data = { 'action' : self.TRANS_XML[action], 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
@@ -342,29 +363,28 @@ class PaymentProcessor(BasePaymentProcessor):
             return ProcessorResult(self.key, False, _('Response contained error code %s' % e))
 
         parsed_results = data_response.split(self.settings['DELIM_CHAR'])
-        response_code = parsed_results[0]
-        reason_code = parsed_results[1]
-        response_text = parsed_results[3]
-        transaction_id = parsed_results[6]
+        response_code = parsed_results[0]   
+        reason_code = parsed_results[1]     
+        response_text = parsed_results[3]   
+        transaction_id = parsed_results[6]  
             
         success = response_code == '1'
-        amount = cim_purchase.purchase.total
 
         payment = None
         if success and not testing:
             if action == self.TRANS_AUTH:
                 self.log_extra('Success, recording authorization')
-                payment = self.record_authorization(cim_purchase=cim_purchase, amount=amount, 
+                payment = self.record_authorization(purchase=cim_purchase.purchase, amount=amount, 
                     transaction_id=transaction_id, reason_code=reason_code)
             else:
                 self.log_extra('Success, recording payment')
                 authorization = data.get('authorization', None)
-                payment = self.record_payment(cim_purchase=cim_purchase, amount=amount, 
+                payment = self.record_payment(purchase=cim_purchase.purchase, amount=amount, 
                     transaction_id=transaction_id, reason_code=reason_code, authorization=authorization)
             
         elif not testing:
             payment = self.record_failure(amount=amount, transaction_id=transaction_id, 
-                reason_code=reason_code, details=response_text, cim_purchase=cim_purchase)
+                reason_code=reason_code, details=response_text, purchase=cim_purchase.purchase)
 
         self.log_extra("Returning success=%s, reason=%s, response_text=%s", success, reason_code, response_text)
         return ProcessorResult(self.key, success, response_text, payment=payment)

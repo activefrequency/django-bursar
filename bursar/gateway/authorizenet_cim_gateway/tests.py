@@ -92,7 +92,6 @@ class TestGateway(TestCase):
         if SKIP_TESTS: return
         self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
         result = self.gateway.authorize_payment(cim_purchase=self.cim_purchase)
-        print result.message
         self.assert_(result.success)
         payment = result.payment
         self.assertEqual(payment.amount, Decimal('20.00'))
@@ -101,12 +100,11 @@ class TestGateway(TestCase):
 
     def test_pending_authorize(self):
         if SKIP_TESTS: return
-        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'), payment=self.default_payment)
         self.assert_(self.cim_purchase.purchase.credit_card)
         pending = self.gateway.create_pending_payment(self.cim_purchase)
         self.assertEqual(pending.amount, Decimal('20.00'))
         result = self.gateway.authorize_payment(cim_purchase=self.cim_purchase)
-        print result.message
         self.assert_(result.success)
         payment = result.payment
         self.assertEqual(payment.amount, Decimal('20.00'))
@@ -119,7 +117,6 @@ class TestGateway(TestCase):
         self.cim_purchase = self.cim_setup(sub_total=Decimal('10.00'))
         self.assertEqual(self.cim_purchase.purchase.total, Decimal('10.00'))
         result = self.gateway.capture_payment(cim_purchase=self.cim_purchase)
-        print result.message
         self.assert_(result.success)
         payment = result.payment
         self.assertEqual(payment.amount, Decimal('10.00'))
@@ -137,14 +134,12 @@ class TestGateway(TestCase):
         pending2 = self.cim_purchase.purchase.get_pending(self.gateway.key)
         self.assertEqual(pending, pending2)
         result = self.gateway.authorize_payment(self.cim_purchase)
-        print result.message
         self.assertEqual(result.success, True)
         self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('25.00'))
         self.assertEqual(self.cim_purchase.purchase.remaining, Decimal('75.00'))
 
         self.gateway.create_pending_payment(cim_purchase=self.cim_purchase, amount=Decimal('75.00'))
         result = self.gateway.authorize_payment(self.cim_purchase)
-        print result.message
         self.assert_(result.success)
         auth = result.payment
         self.assertEqual(auth.amount, Decimal('75.00'))

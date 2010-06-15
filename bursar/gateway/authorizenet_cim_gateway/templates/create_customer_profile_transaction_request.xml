@@ -3,14 +3,8 @@
 {% include "bursar/auth.xml" %}
     <transaction>
         <{{ action }}>
-            {% if action != 'profileTransVoid' %}
-                {% if authorization %}
-            <amount>{{ authorization.amount }}</amount>
-                {% else %}{%if pending %}
-            <amount>{{ pending.amount }}</amount>
-                {% else %}
-            <amount>{{ purchase.total }}</amount>
-                {% endif %}{% endif %}
+            {% if amount %}
+            <amount>{{ amount }}</amount>
             {% endif %}
             {% if purchase.tax %}
             <tax>
@@ -23,7 +17,7 @@
             </shipping>
             {% endif %}
             <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId>     
-            <customerPaymentProfileId>{{ cim_purchase.customer_profile_id }}</customerPaymentProfileId>     
+            <customerPaymentProfileId>{{ cim_purchase.payment_profile_id }}</customerPaymentProfileId>     
             <customerShippingAddressId>{{ cim_purchase.shipping_address_id }}</customerShippingAddressId>
             {% if action != 'profileTransVoid' and action != 'profileTransPriorAuthCapture'%}
             <order>
