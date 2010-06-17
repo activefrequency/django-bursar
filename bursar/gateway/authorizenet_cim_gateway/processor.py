@@ -121,7 +121,7 @@ class PaymentProcessor(BasePaymentProcessor):
         """
         assert(cim_purchase)
         if cim_purchase.purchase.remaining == Decimal('0.00'):
-            self.log_extra('%s is paid in full, no authorization attempted.', purchase)
+            self.log_extra('%s is paid in full, no authorization attempted.', cim_purchase)
             results = ProcessorResult(self.key, True, _("No charge needed, paid in full."))
         else:
             data={}
@@ -257,6 +257,7 @@ class PaymentProcessor(BasePaymentProcessor):
             return ProcessorResult(self.key, False, e)
 
     def create_payment_profile(self, cim_purchase, credit_card, credit_card_number, testing=False):
+        credit_card.expire_month = "%.2d" % credit_card.expire_month #force two digits
         data = {'action' : 'create', 'cc' : credit_card, 'credit_card_number' : credit_card_number, 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_payment_profile(data, testing)
 
@@ -340,7 +341,7 @@ class PaymentProcessor(BasePaymentProcessor):
         assert(cim_purchase)
         self.log.info("About to send a request to authorize.net: %(connection)s\n%(logPostString)s", data)
 
-        if action is not self.TRANS_VOID:
+        if action != self.TRANS_VOID:
             if amount is None:
                 amount = cim_purchase.purchase.total
             if not data.has_key('amount'):

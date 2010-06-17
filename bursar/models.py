@@ -151,7 +151,10 @@ class CreditCardDetail(models.Model):
     @property
     def expirationDate(self):
         return(str(self.expire_month) + "/" + str(self.expire_year))
-    
+
+    def __str__(self) :
+        return str({'expire_month' : self.expire_month, 'expire_year' : self.expire_year, 'display_cc' : self.display_cc })
+
     class Meta:
         verbose_name = _("Credit Card")
         verbose_name_plural = _("Credit Cards")
