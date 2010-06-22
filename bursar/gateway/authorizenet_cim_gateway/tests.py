@@ -55,8 +55,8 @@ class TestGateway(TestCase):
         credit_card_number = '4007000000027'
         cc = CreditCardDetail()
         cc.credit_type='Visa'
-        cc.expire_month='08'
-        cc.expire_year='2012'
+        cc.expire_month=8
+        cc.expire_year=2012
         cc.card_holder = "%s %s" % (cim_purchase.purchase.first_name, cim_purchase.purchase.last_name)
         result = self.gateway.create_payment_profile(cim_purchase, cc, credit_card_number)
         cim_purchase.payment_profile_id = result.message
@@ -76,7 +76,7 @@ class TestGateway(TestCase):
         return cim
 
     def test_deletion(self):
-        data = {'customer_profile_id' : 1775650}
+        data = {'customer_profile_id' : 1856716}
         self.gateway.delete_customer_profile(data)
 
     def test_profile_setup(self):
@@ -97,6 +97,20 @@ class TestGateway(TestCase):
         self.assertEqual(payment.amount, Decimal('20.00'))
         self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('0.00'))
         self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('20.00'))
+
+    def test_void(self):
+        if SKIP_TESTS: return
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
+        result = self.gateway.authorize_payment(cim_purchase=self.cim_purchase)
+        self.assert_(result.success)
+        payment = result.payment
+        self.assertEqual(payment.amount, Decimal('20.00'))
+        self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('0.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('20.00'))
+        result = self.gateway.release_authorized_payment(cim_purchase=self.cim_purchase, auth=payment)
+        self.assert_(result.success)
+        self.assertEqual(self.cim_purchase.purchase.total_payments, Decimal('0.00'))
+        self.assertEqual(self.cim_purchase.purchase.authorized_remaining, Decimal('0.00'))
 
     def test_pending_authorize(self):
         if SKIP_TESTS: return

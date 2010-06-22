@@ -11,7 +11,7 @@
                 <amount>{{ purchase.tax }}</amount>
             </tax>
             {% endif %}
-            {% if purchase.shipping %}
+            {% if purchase.shipping and action != 'profileTransVoid'%}
             <shipping>
                 <amount>{{ purchase.shipping }}</amount>
             </shipping>

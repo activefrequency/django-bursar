@@ -205,7 +205,7 @@ class PaymentProcessor(BasePaymentProcessor):
         assert(cim_purchase)
         self.log_extra('Releasing Authorization #%i for %s', auth.id, cim_purchase.purchase)
         results = None
-        if auth.transcation_id:
+        if auth.transaction_id:
             data = {'transaction_id' : auth.transaction_id}
             results = self.send_post(data, self.TRANS_VOID, cim_purchase)
             
