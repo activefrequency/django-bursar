@@ -372,8 +372,9 @@ class Purchase(models.Model):
     @property
     def total_payments(self):
         """Returns the total value of all completed payments"""
-        payments = [p.amount for p in self.payments.filter(success=True)]
+        payments = [p.amount for p in self.payments.filter(success=True, amount__gt=Decimal('0'))]
         amount = None
+        print payments
         if payments:
             amount = reduce(operator.add, payments)
         if amount is None:
