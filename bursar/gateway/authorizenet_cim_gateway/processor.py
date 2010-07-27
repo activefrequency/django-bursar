@@ -226,9 +226,8 @@ class PaymentProcessor(BasePaymentProcessor):
             
         return results
 
-    def create_customer_profile(self, purchase, testing=False):
+    def create_customer_profile(self, data, testing=False):
         t = get_template('bursar/create_customer_profile_request.xml')
-        data = {'purchase' : purchase}
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
         try:

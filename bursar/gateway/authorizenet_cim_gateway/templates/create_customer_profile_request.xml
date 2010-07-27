@@ -2,6 +2,9 @@
 <createCustomerProfileRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
 {% include "bursar/auth.xml" %}
     <profile>
+        {% if merchantCustomerId %}
+        <merchantCustomerId>{{ merchantCustomerId }}</merchantCustomerId>
+        {% endif %}
         {% if purchase.email %}
         <email>{{ purchase.email }}</email>
         {% else %}

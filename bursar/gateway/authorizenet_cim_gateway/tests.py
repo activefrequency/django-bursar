@@ -47,7 +47,8 @@ class TestGateway(TestCase):
             self.gateway.delete_customer_profile(data)
 
     def customer_profile(self, purchase):
-        result = self.gateway.create_customer_profile(purchase)
+        data = {'purchase' : purchase, 'merchantCustomerId' : 1}
+        result = self.gateway.create_customer_profile(data)
         cim_purchase = CIMPurchase(purchase=purchase, customer_profile_id=result.message)
         return cim_purchase
 
