@@ -282,6 +282,9 @@ class Purchase(models.Model):
             amount = Decimal('0.00')
 
         return amount
+
+    def get_authorizations(self):
+        return self.authorizations.filter(complete=False)
         
     @property
     def credit_card(self):
@@ -374,7 +377,6 @@ class Purchase(models.Model):
         """Returns the total value of all completed payments"""
         payments = [p.amount for p in self.payments.filter(success=True, amount__gt=Decimal('0'))]
         amount = None
-        print payments
         if payments:
             amount = reduce(operator.add, payments)
         if amount is None:

@@ -14,6 +14,12 @@ import urllib2
 from django.template import Context, Template
 
 class AuthNetException(Exception):
+    def get_code(self):
+        return self.args[0]
+
+    def get_text(self):
+        return self.args[1]
+
     def __str__(self):
         return "AuthNetException, code: %s, message: %s" % self.args
 
@@ -50,6 +56,13 @@ class AuthNetResponse(object):
     @staticmethod
     def get_text(elm):
         return ''.join([ "%s" % node.data for node in elm.childNodes if node.nodeType == node.TEXT_NODE ])
+
+    @staticmethod
+    def get_duplicate(text):
+        import re
+        regex = re.compile("(\d+)")
+        r = regex.search(text)
+        return r.groups()[0]
 
     @staticmethod
     def get_message(elm):
