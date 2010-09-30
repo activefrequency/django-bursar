@@ -324,6 +324,12 @@ class Purchase(models.Model):
 
     def recalc(self):
         zero = Decimal('0.00')
+        if self.tax == None:
+            self.tax = zero
+        if self.shipping == None:
+            self.shipping = zero
+        if self.sub_total == None:
+            self.sub_total = zero
         if self.lineitems.count() > 0:
             subtotal = Decimal('0.00')
             shipping = Decimal('0.00')
@@ -339,8 +345,6 @@ class Purchase(models.Model):
                 self.shipping = zero
             if tax > zero and self.tax == zero:
                 self.tax = tax
-        if self.tax == None:
-            self.tax = zero
                                 
         self.total = self.sub_total + self.tax + self.shipping
         log.debug("Purchase #%s recalc: sub_total=%s, shipping=%s, tax=%s, total=%s", 
