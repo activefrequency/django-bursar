@@ -333,11 +333,13 @@ class PaymentProcessor(BasePaymentProcessor):
         return { 'connection' : conn, 'api_login_id' : self.settings['API_LOGIN_KEY'], 'transaction_key' : self.settings['TRANKEY'] }
 
     def cim_post(self, url, xml_request):
+        #print xml_request
         headers = { 'Content-Type' : 'text/xml' }
         conn = urllib2.Request(url=url, data=xml_request, headers=headers)
         f = urllib2.urlopen(conn)
         all_results = f.read()
         self.log_extra('Authorize response: %s', all_results)
+        #print all_results
         return parseString(all_results)
 
     def send_post(self, data, action, cim_purchase=None, amount=None, testing=False):

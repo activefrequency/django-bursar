@@ -18,7 +18,9 @@
             {% endif %}
             <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId>     
             <customerPaymentProfileId>{{ cim_purchase.payment_profile_id }}</customerPaymentProfileId>     
+            {% if cim_purchase.shipping_address_id %}
             <customerShippingAddressId>{{ cim_purchase.shipping_address_id }}</customerShippingAddressId>
+            {% endif %}
             {% if action != 'profileTransVoid' and action != 'profileTransPriorAuthCapture'%}
             <order>
                 <invoiceNumber>{{ purchase.orderno }}</invoiceNumber>
