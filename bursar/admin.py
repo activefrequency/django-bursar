@@ -166,7 +166,9 @@ class PaymentOptions(AutocompleteAdmin):
     raw_id_fields = ['purchase']
     inlines = [CreditCardDetail_Inline, PaymentNote_Inline]
 
+class PaymentFailureOptions(admin.ModelAdmin):
+    list_display = ('id', 'amount', 'time_stamp', 'purchase')
 
 admin.site.register(Purchase, PurchaseOptions)
 admin.site.register(Payment, PaymentOptions)
-admin.site.register(PaymentFailure)
+admin.site.register(PaymentFailure, PaymentFailureOptions)
