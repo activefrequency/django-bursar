@@ -375,7 +375,8 @@ class PaymentProcessor(BasePaymentProcessor):
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
             self.log.error("reponse error %s\n%s", xml_request, xml_response.toxml(), e)
-            return ProcessorResult(self.key, False, _('Response contained error code %s' % e))
+            payment = self.record_failure(amount=amount, reason_code=e.get_code(), details=e.get_text(), purchase=cim_purchase.purchase)
+            return ProcessorResult(self.key, False, _('Response contained error code %s' % e), payment=payment)
 
         parsed_results = data_response.split(self.settings['DELIM_CHAR'])
         response_code = parsed_results[0]   
