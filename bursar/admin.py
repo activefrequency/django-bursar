@@ -169,3 +169,4 @@ class PaymentOptions(AutocompleteAdmin):
 
 admin.site.register(Purchase, PurchaseOptions)
 admin.site.register(Payment, PaymentOptions)
+admin.site.register(PaymentFailure)
