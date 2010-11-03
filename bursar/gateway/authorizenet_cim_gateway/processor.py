@@ -340,6 +340,11 @@ class PaymentProcessor(BasePaymentProcessor):
         all_results = f.read()
         self.log_extra('Authorize response: %s', all_results)
         #print all_results
+        from django.core.mail import mail_admins
+        from django.utils.encoding import smart_unicode
+        from django.conf import settings
+        msg = str(xml_request)+' '+str(all_results)
+        mail_admins(smart_unicode('debug: %s' % url), msg)
         return parseString(all_results)
 
     def send_post(self, data, action, cim_purchase=None, amount=None, testing=False):
