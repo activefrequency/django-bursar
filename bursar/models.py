@@ -152,8 +152,8 @@ class CreditCardDetail(models.Model):
     def expirationDate(self):
         return(str(self.expire_month) + "/" + str(self.expire_year))
 
-    def __str__(self) :
-        return str({'expire_month' : self.expire_month, 'expire_year' : self.expire_year, 'display_cc' : self.display_cc })
+    def describe(self):
+        return {'expire_month' : self.expire_month, 'expire_year' : self.expire_year, 'display_cc' : self.display_cc }
 
     class Meta:
         verbose_name = _("Credit Card")
