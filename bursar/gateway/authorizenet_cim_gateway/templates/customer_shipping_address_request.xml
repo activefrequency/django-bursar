@@ -8,7 +8,7 @@
         <address>{{ purchase.ship_street1 }}</address>
         <city>{{ purchase.ship_city }}</city>
         <state>{{ purchase.ship_state }}</state>
-        <zip>{{ purchase.ship_zip }}</zip>
+        <zip>{{ purchase.ship_postal_code }}</zip>
         <country>{{ purchase.ship_country }}</country>
     </address>
 </{{ action }}CustomerShippingAddressRequest>
