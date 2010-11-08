@@ -143,7 +143,7 @@ class PaymentProcessor(BasePaymentProcessor):
                 amount = pending.amount
                 data['pending'] = pending
             except PaymentPending.DoesNotExist:
-                amount = cim_purchase.purchase.total
+                amount = cim_purchase.purchase.remaining
             self.log_extra('Authorizing payment of %s for %s', amount, cim_purchase)
 
             results = self.send_post(data, self.TRANS_AUTH, cim_purchase, amount, testing)
