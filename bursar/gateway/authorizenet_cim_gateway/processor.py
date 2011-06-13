@@ -333,8 +333,10 @@ class PaymentProcessor(BasePaymentProcessor):
         return { 'connection' : conn, 'api_login_id' : self.settings['API_LOGIN_KEY'], 'transaction_key' : self.settings['TRANKEY'] }
 
     def cim_post(self, url, xml_request):
+        from django.utils.encoding import smart_str
         #print xml_request
         headers = { 'Content-Type' : 'text/xml' }
+        xml_request = smart_str(xml_request)
         conn = urllib2.Request(url=url, data=xml_request, headers=headers)
         f = urllib2.urlopen(conn)
         all_results = f.read()
