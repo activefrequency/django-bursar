@@ -21,6 +21,9 @@
                 {% endif %}
             </creditCard>
         </payment>
+    {% if include_id %}
+    <customerPaymentProfileId>{{ cim_purchase.payment_profile_id }}</customerPaymentProfileId>
+    {% endif %}
     </paymentProfile> 
     {% if validation_mode %}
     <validationMode>{{ validation_mode }}</validationMode>

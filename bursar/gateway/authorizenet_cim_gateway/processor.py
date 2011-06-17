@@ -273,8 +273,9 @@ class PaymentProcessor(BasePaymentProcessor):
         data = {'action' : 'create', 'cc' : credit_card, 'credit_card_number' : credit_card_number, 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_payment_profile(data, testing)
 
-    def update_payment_profile(self, cim_purchase, testing=False):
-        data = {'action' : 'update', 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
+    def update_payment_profile(self, cim_purchase, credit_card, credit_card_number, testing=False):
+        credit_card.expire_month = "%.2d" % credit_card.expire_month #force two digits
+        data = {'include_id': True, 'action' : 'update', 'cc' : credit_card, 'credit_card_number' : credit_card_number, 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_payment_profile(data, testing)
 
     def send_payment_profile(self, data, testing=False):
@@ -283,7 +284,10 @@ class PaymentProcessor(BasePaymentProcessor):
         xml_request = t.render(Context(data))
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
-            message = self.parse_cim_response(xml_response, 'customerPaymentProfileId')
+            if not data.has_key('include_id'):
+                message = self.parse_cim_response(xml_response, 'customerPaymentProfileId')
+            else: # update does not return the profile id
+                message = data.get('cim_purchase').payment_profile_id
             return ProcessorResult(self.key, True, message)
         except urllib2.URLError, ue:
             self.log.error("error opening %s\n%s", data['connection'], ue)

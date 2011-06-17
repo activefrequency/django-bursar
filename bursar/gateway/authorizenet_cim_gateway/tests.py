@@ -88,6 +88,17 @@ class TestGateway(TestCase):
         self.assertEqual(isinstance(self.cim_purchase.customer_profile_id, AuthNetException), False)
         self.assertEqual(isinstance(self.cim_purchase.payment_profile_id, AuthNetException), False)
         self.assertEqual(isinstance(self.cim_purchase.shipping_address_id, AuthNetException), False)
+
+    def test_update_profile(self):
+        self.cim_purchase = self.cim_setup(sub_total=Decimal('20.00'))
+        credit_card_number = '4007000000027'
+        cc = CreditCardDetail()
+        cc.credit_type='Visa'
+        cc.expire_month=8
+        cc.expire_year=2016
+        cc.card_holder = "%s %s" % (self.cim_purchase.purchase.first_name, self.cim_purchase.purchase.last_name)
+        result = self.gateway.update_payment_profile(self.cim_purchase, cc, credit_card_number)
+        self.assertEqual(result.success, True)
         
     def test_authorize(self):
         if SKIP_TESTS: return
