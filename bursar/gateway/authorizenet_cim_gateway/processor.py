@@ -287,7 +287,11 @@ class PaymentProcessor(BasePaymentProcessor):
             if not data.has_key('include_id'):
                 message = self.parse_cim_response(xml_response, 'customerPaymentProfileId')
             else: # update does not return the profile id
-                message = data.get('cim_purchase').payment_profile_id
+                code, text = AuthNetResponse.get_message(xml_response)
+                if AuthNetResponse.is_success(code):
+                    message = data.get('cim_purchase').payment_profile_id
+                else:
+                    raise AuthNetException(code, text)
             return ProcessorResult(self.key, True, message)
         except urllib2.URLError, ue:
             self.log.error("error opening %s\n%s", data['connection'], ue)
