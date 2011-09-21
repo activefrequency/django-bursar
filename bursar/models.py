@@ -7,6 +7,7 @@ from bursar.fields import CurrencyField
 from bursar.bursar_settings import get_bursar_setting
 from Crypto.Cipher import Blowfish
 from datetime import datetime
+from datetime import date
 from decimal import Decimal, ROUND_UP
 from django.conf import settings
 from django.contrib.sites.models import Site
@@ -151,6 +152,10 @@ class CreditCardDetail(models.Model):
     @property
     def expirationDate(self):
         return(str(self.expire_month) + "/" + str(self.expire_year))
+
+    def is_expired(self):
+        expiry = date(self.expire_year, self.expire_month, 1)
+        return True if expiry < date.today() else False
 
     def describe(self):
         return {'expire_month' : self.expire_month, 'expire_year' : self.expire_year, 'display_cc' : self.display_cc }

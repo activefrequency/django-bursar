@@ -308,8 +308,24 @@ class PaymentProcessor(BasePaymentProcessor):
         data = {'action' : 'create', 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         return self.send_shipping_address(data, testing)
 
+    def delete_shipping_address(self, data, testing=False):
+        template = "bursar/delete_shipping_address_request.xml"
+        t = get_template(template)
+        data.update(self.get_api_data())
+        xml_request = t.render(Context(data))
+        try:
+            xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)
+            return ProcessorResult(self.key, True, "Address Removed")
+        except urllib2.URLError, ue:
+            self.log.error("error opening %s\n%s", data['connection'], ue)
+            return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
+        except AuthNetException as e:
+            self.log.error(e, xml_request, xml_response.toxml())
+            return ProcessorResult(self.key, False, e)
+
     def send_shipping_address(self, data, testing=False):
-        t = get_template('bursar/customer_shipping_address_request.xml')
+        template = 'bursar/customer_shipping_address_request.xml'
+        t = get_template(template)
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
         try:
@@ -349,7 +365,6 @@ class PaymentProcessor(BasePaymentProcessor):
         f = urllib2.urlopen(conn)
         all_results = f.read()
         self.log_extra('Authorize response: %s', all_results)
-        #print all_results
         return parseString(all_results)
 
     def send_post(self, data, action, cim_purchase=None, amount=None, testing=False):

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<deleteCustomerShippingAddressRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
+{% include "bursar/auth.xml" %}
+    <customerProfileId>{{ customer_profile_id }}</customerProfileId>     
+    <customerAddressId>{{ shipping_address_id }}</customerAddressId>
+</deleteCustomerShippingAddressRequest>
