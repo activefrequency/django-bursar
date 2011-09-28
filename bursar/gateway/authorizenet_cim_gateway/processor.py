@@ -291,6 +291,7 @@ class PaymentProcessor(BasePaymentProcessor):
                 if AuthNetResponse.is_success(code):
                     message = data.get('cim_purchase').payment_profile_id
                 else:
+                    self.log.debug("payment profile creation failed %s", xml_request.toxml())
                     raise AuthNetException(code, text)
             return ProcessorResult(self.key, True, message)
         except urllib2.URLError, ue:
