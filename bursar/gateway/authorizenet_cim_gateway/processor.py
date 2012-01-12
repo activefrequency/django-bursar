@@ -209,6 +209,8 @@ class PaymentProcessor(BasePaymentProcessor):
             
         return results
 
+    def create_payment(self, cim_purchase=None, amount=NOTSET):
+        return super(PaymentProcessor, self).record_payment(purchase=cim_purchase.purchase, amount=amount)
 
     def create_pending_payment(self, cim_purchase=None, amount=NOTSET):
         return super(PaymentProcessor, self).create_pending_payment(purchase=cim_purchase.purchase, amount=amount)
