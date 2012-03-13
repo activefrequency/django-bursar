@@ -253,7 +253,8 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
-            self.log.error(e, xml_request, xml_response.toxml())
+            msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+            self.log.error(e, xml_request, msg)
             return ProcessorResult(self.key, False, e)
 
     def delete_customer_profile(self, data, testing=False):
@@ -267,7 +268,8 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
-            self.log.error(e, xml_request, xml_response.toxml())
+            msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+            self.log.error(e, xml_request, msg)
             return ProcessorResult(self.key, False, e)
 
     def create_payment_profile(self, cim_purchase, credit_card, credit_card_number, testing=False):
@@ -293,14 +295,16 @@ class PaymentProcessor(BasePaymentProcessor):
                 if AuthNetResponse.is_success(code):
                     message = data.get('cim_purchase').payment_profile_id
                 else:
-                    self.log.debug("payment profile creation failed %s", xml_request.toxml())
+                    msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+                    self.log.debug("payment profile creation failed %s", msg)
                     raise AuthNetException(code, text)
             return ProcessorResult(self.key, True, message)
         except urllib2.URLError, ue:
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
-            self.log.error(e, xml_request, xml_response.toxml())
+            msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+            self.log.error(e, xml_request, msg)
             return ProcessorResult(self.key, False, e)
 
     def update_shipping_address(self, cim_purchase, testing=False):
@@ -323,7 +327,8 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
-            self.log.error(e, xml_request, xml_response.toxml())
+            msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+            self.log.error(e, xml_request, msg)
             return ProcessorResult(self.key, False, e)
 
     def send_shipping_address(self, data, testing=False):
@@ -339,7 +344,8 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
-            self.log.error(e, xml_request, xml_response.toxml())
+            msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+            self.log.error(e, xml_request, msg)
             return ProcessorResult(self.key, False, e)
 
     def parse_cim_response(self, xml_dom, tag):
@@ -402,7 +408,8 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log.error("error opening %s\n%s", data['connection'], ue)
             return ProcessorResult(self.key, False, _('Could not talk to Authorize.net gateway'))
         except AuthNetException as e:
-            self.log.error("reponse error %s\n%s", xml_request, xml_response.toxml(), e)
+            msg = xml_response.toxml() if hasattr(xml_response, 'toxml') else xml_response
+            self.log.error("reponse error %s\n%s", xml_request, msg, e)
             payment = self.record_failure(amount=amount, reason_code=e.get_code(), details=e.get_text(), purchase=cim_purchase.purchase)
             return ProcessorResult(self.key, False, _('%s: %s' % (e.get_code(), e.get_text())), payment=payment)
 
