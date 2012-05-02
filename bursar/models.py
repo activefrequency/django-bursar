@@ -55,7 +55,7 @@ class Authorization(PaymentBase):
     purchase = models.ForeignKey('Purchase', related_name="authorizations")
     capture = models.ForeignKey('Payment', related_name="authorizations")
     complete = models.BooleanField(_('Complete'), default=False)
-    payment_profile_id = models.IntegerField(blank=True, null=True)
+    payment_profile_id = models.IntegerField('Payment Profile ID', blank=True, null=True)
 
     def __unicode__(self):
         if self.id is not None:
