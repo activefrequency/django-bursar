@@ -188,6 +188,8 @@ class PaymentProcessor(BasePaymentProcessor):
         results = None
         if authorization.transaction_id:
             data = {'transaction_id' : authorization.transaction_id, 'authorization' : authorization}
+            if hasattr(authorization, 'payment_profile_id') and authorization.payment_profile_id is not None:
+                data['payment_profile_id'] = authorization.payment_profile_id
             results = self.send_post(data, self.TRANS_CAPTURE, cim_purchase, amount, testing)
         
         return results
@@ -398,6 +400,8 @@ class PaymentProcessor(BasePaymentProcessor):
         data.update(self.get_api_data())
         object_data = { 'action' : self.TRANS_XML[action], 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         data.update(object_data)
+        if not data.has_key('payment_profile_id'):
+            data['payment_profile_id'] = cim_purchase.payment_profile_id
 
         t = get_template('bursar/create_customer_profile_transaction_request.xml')
         xml_request = t.render(Context(data))
@@ -427,6 +431,8 @@ class PaymentProcessor(BasePaymentProcessor):
                 self.log_extra('Success, recording authorization')
                 payment = self.record_authorization(purchase=cim_purchase.purchase, amount=amount, 
                     transaction_id=transaction_id, reason_code=reason_code)
+                payment.payment_profile_id = cim_purchase.payment_profile_id
+                payment.save()
             else:
                 self.log_extra('Success, recording payment')
                 authorization = data.get('authorization', None)
