@@ -1,6 +1,6 @@
 from bursar import signals
 from bursar.errors import GatewayError
-from bursar.models import Authorization, Payment, PaymentFailure, PaymentPending, Purchase
+from bursar.models import Authorization, Refund, Payment, PaymentFailure, PaymentPending, Purchase
 from datetime import datetime
 from decimal import Decimal
 from django.utils.translation import ugettext_lazy as _
@@ -153,6 +153,13 @@ class BasePaymentProcessor(object):
 
         return payment
 
+    def record_refund(self, amount=NOTSET, transaction_id="", reason_code="", purchase=None):
+        recorder = PaymentRecorder(purchase, self.key)
+        recorder.transaction_id = transaction_id
+        recorder.reason_code = reason_code
+        refund = recorder.make_refund(amount=amount)
+        return refund
+
     def release_authorized_payment(self, purchase=None, auth=None, testing=False):
         """Release a previously authorized payment."""
         self.log.warn('Module does not implement released_authorized_payment: %s', self.key)
@@ -237,6 +244,17 @@ class PaymentRecorder(object):
         self.payment.save()
         self.cleanup()
         return self.payment
+
+    def make_refund(self, amount=NOTSET):
+        self.amount = amount
+        self.refund = Refund(amount=amount, 
+            purchase=self.purchase, 
+            reason_code=self.reason_code, 
+            method=self.key, 
+            transaction_id=self.transaction_id
+        )
+        self.refund.save()
+        return self.refund
 
     def capture_payment(self, amount=NOTSET):
         """Make a direct payment without a prior authorization, using the existing pending payment if found."""

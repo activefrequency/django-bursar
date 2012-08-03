@@ -56,6 +56,7 @@ class Authorization(PaymentBase):
     capture = models.ForeignKey('Payment', related_name="authorizations")
     complete = models.BooleanField(_('Complete'), default=False)
     payment_profile_id = models.IntegerField('Payment Profile ID', blank=True, null=True)
+    customer_profile_id = models.IntegerField('Customer Profile ID', blank=True, null=True)
 
     def __unicode__(self):
         if self.id is not None:
@@ -197,6 +198,25 @@ class Payment(PaymentBase):
     class Meta:
         verbose_name = _("Payment")
         verbose_name_plural = _("Payments")
+
+
+class Refund(PaymentBase):
+    """
+    A refund attempt on a purchase
+    """
+    purchase = models.ForeignKey('Purchase', related_name="refunds")
+    success = models.BooleanField(_('Success'), default=False)
+    objects = PaymentManager()
+
+    def __unicode__(self):
+        if self.id is not None:
+            return u"Refund #%i: amount=%s" % (self.id, self.amount)
+        else:
+            return u"Refund (unsaved)"
+            
+    class Meta:
+        verbose_name = _("Refund")
+        verbose_name_plural = _("Refunds")
 
 
 class PaymentFailure(PaymentBase):
@@ -351,10 +371,15 @@ class Purchase(models.Model):
                 self.shipping = zero
             if tax > zero and self.tax == zero:
                 self.tax = tax
+
                                 
-        self.total = self.sub_total + self.tax + self.shipping
+        self.total = self.sub_total + self.tax + self.shipping - self.refund_amount
         log.debug("Purchase #%s recalc: sub_total=%s, shipping=%s, tax=%s, total=%s", 
             self.id, self.sub_total, self.shipping, self.tax, self.total)
+
+    @property
+    def refund_amount(self):
+        return Decimal(sum([r.amount for r in self.refunds.all()]))
 
     def recurring_lineitems(self):
         """Get all recurring lineitems"""
@@ -364,7 +389,7 @@ class Purchase(models.Model):
     @property
     def remaining(self):
         """Return the total less the payments and auths"""
-        return self.total - self.total_payments - self.authorized_remaining
+        return self.total - self.total_payments - self.authorized_remaining - self.refund_amount
     
     def save(self, *args, **kwargs):
         """
@@ -388,7 +413,7 @@ class Purchase(models.Model):
         payments = [p.amount for p in self.payments.filter(success=True, amount__gt=Decimal('0'))]
         amount = None
         if payments:
-            amount = reduce(operator.add, payments)
+            amount = reduce(operator.add, payments) - self.refund_amount
         if amount is None:
             amount = Decimal('0.00')
         log.debug("total payments for %s=%s", self, amount)

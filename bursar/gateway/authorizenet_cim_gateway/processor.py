@@ -190,6 +190,8 @@ class PaymentProcessor(BasePaymentProcessor):
             data = {'transaction_id' : authorization.transaction_id, 'authorization' : authorization}
             if hasattr(authorization, 'payment_profile_id') and authorization.payment_profile_id is not None:
                 data['payment_profile_id'] = authorization.payment_profile_id
+            if hasattr(authorization, 'customer_profile_id') and authorization.customer_profile_id is not None:
+                data['customer_profile_id'] = authorization.customer_profile_id
             results = self.send_post(data, self.TRANS_CAPTURE, cim_purchase, amount, testing)
         
         return results
@@ -224,6 +226,10 @@ class PaymentProcessor(BasePaymentProcessor):
         results = None
         if auth.transaction_id:
             data = {'transaction_id' : auth.transaction_id}
+            if hasattr(auth, 'payment_profile_id') and auth.payment_profile_id is not None:
+                data['payment_profile_id'] = auth.payment_profile_id
+            if hasattr(auth, 'customer_profile_id') and auth.customer_profile_id is not None:
+                data['customer_profile_id'] = auth.customer_profile_id
             results = self.send_post(data, self.TRANS_VOID, cim_purchase)
             
         if results.success:
@@ -232,14 +238,19 @@ class PaymentProcessor(BasePaymentProcessor):
             
         return results
 
-    def refund_payment(self, cim_purchase=None, auth=None):
+    def refund_payment(self, cim_purchase=None, auth=None, amount=None):
         """ Perform a refund """
         assert(cim_purchase)
+        assert(amount)
         self.log_extra('Performing refund on #%i for %s', auth.id, cim_purchase.purchase)
         results = None
-        if authorization.transaction_id:
-            data = {'transaction_id' : authorization.transaction_id}
-            results = self.send_post(data, self.TRANS_REFUND, cim_purchase)
+        if auth.transaction_id:
+            data = {'transaction_id' : auth.transaction_id, 'amount': amount}
+            if hasattr(auth, 'payment_profile_id') and auth.payment_profile_id is not None:
+                data['payment_profile_id'] = auth.payment_profile_id
+            if hasattr(auth, 'customer_profile_id') and auth.customer_profile_id is not None:
+                data['customer_profile_id'] = auth.customer_profile_id
+            results = self.send_post(data, self.TRANS_REFUND, cim_purchase=cim_purchase, amount=amount)
             
         return results
 
@@ -375,6 +386,7 @@ class PaymentProcessor(BasePaymentProcessor):
         conn = urllib2.Request(url=url, data=xml_request, headers=headers)
         f = urllib2.urlopen(conn)
         all_results = f.read()
+        #print all_results
         self.log_extra('Authorize response: %s', all_results)
         return parseString(all_results)
 
@@ -402,6 +414,8 @@ class PaymentProcessor(BasePaymentProcessor):
         data.update(object_data)
         if not data.has_key('payment_profile_id'):
             data['payment_profile_id'] = cim_purchase.payment_profile_id
+        if not data.has_key('customer_profile_id'):
+            data['customer_profile_id'] = cim_purchase.customer_profile_id
 
         t = get_template('bursar/create_customer_profile_transaction_request.xml')
         xml_request = t.render(Context(data))
@@ -432,7 +446,11 @@ class PaymentProcessor(BasePaymentProcessor):
                 payment = self.record_authorization(purchase=cim_purchase.purchase, amount=amount, 
                     transaction_id=transaction_id, reason_code=reason_code)
                 payment.payment_profile_id = cim_purchase.payment_profile_id
+                payment.customer_profile_id = cim_purchase.customer_profile_id
                 payment.save()
+            elif action == self.TRANS_REFUND:
+                payment = self.record_refund(purchase=cim_purchase.purchase, amount=amount, 
+                    transaction_id=transaction_id, reason_code=reason_code)
             else:
                 self.log_extra('Success, recording payment')
                 authorization = data.get('authorization', None)

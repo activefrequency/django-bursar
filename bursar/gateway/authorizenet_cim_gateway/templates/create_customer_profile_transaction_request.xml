@@ -6,22 +6,22 @@
             {% if amount %}
             <amount>{{ amount }}</amount>
             {% endif %}
-            {% if purchase.tax %}
+            {% if purchase.tax and action != 'profileTransRefund' %}
             <tax>
                 <amount>{{ purchase.tax }}</amount>
             </tax>
             {% endif %}
-            {% if purchase.shipping and action != 'profileTransVoid'%}
+            {% if purchase.shipping and action != 'profileTransVoid' and action != 'profileTransRefund' %}
             <shipping>
                 <amount>{{ purchase.shipping }}</amount>
             </shipping>
             {% endif %}
-            <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId>     
+            <customerProfileId>{{ customer_profile_id }}</customerProfileId>     
             <customerPaymentProfileId>{{ payment_profile_id }}</customerPaymentProfileId>     
             {% if cim_purchase.shipping_address_id %}
             <customerShippingAddressId>{{ cim_purchase.shipping_address_id }}</customerShippingAddressId>
             {% endif %}
-            {% if action != 'profileTransVoid' and action != 'profileTransPriorAuthCapture'%}
+            {% if action != 'profileTransRefund' and action != 'profileTransVoid' and action != 'profileTransPriorAuthCapture'%}
             <order>
                 <invoiceNumber>{{ purchase.orderno }}</invoiceNumber>
             </order>
