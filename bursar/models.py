@@ -413,7 +413,7 @@ class Purchase(models.Model):
         payments = [p.amount for p in self.payments.filter(success=True, amount__gt=Decimal('0'))]
         amount = None
         if payments:
-            amount = reduce(operator.add, payments) - self.refund_amount
+            amount = reduce(operator.add, payments)
         if amount is None:
             amount = Decimal('0.00')
         log.debug("total payments for %s=%s", self, amount)
