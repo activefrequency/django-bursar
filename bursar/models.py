@@ -389,7 +389,7 @@ class Purchase(models.Model):
     @property
     def remaining(self):
         """Return the total less the payments and auths"""
-        return self.total - self.total_payments - self.authorized_remaining - self.refund_amount
+        return self.total - self.total_payments - self.authorized_remaining
     
     def save(self, *args, **kwargs):
         """
