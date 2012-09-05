@@ -67,7 +67,7 @@ class Authorization(PaymentBase):
     @property
     def remaining(self):
         amount = self.purchase.total_payments        
-        remaining = self.purchase.total - amount
+        remaining = self.purchase.total - amount + self.purchase.subtract_refunds
         if remaining > self.amount:
             remaining = self.amount
         return remaining
@@ -206,6 +206,7 @@ class Refund(PaymentBase):
     """
     purchase = models.ForeignKey('Purchase', related_name="refunds")
     success = models.BooleanField(_('Success'), default=False)
+    subtract_for_remaining = models.BooleanField(_('When calculating remaining for purchase subtract this from total payments'), default=False)
     objects = PaymentManager()
 
     def __unicode__(self):
@@ -373,13 +374,17 @@ class Purchase(models.Model):
                 self.tax = tax
 
                                 
-        self.total = self.sub_total + self.tax + self.shipping - self.refund_amount
+        self.total = self.sub_total + self.tax + self.shipping
         log.debug("Purchase #%s recalc: sub_total=%s, shipping=%s, tax=%s, total=%s", 
             self.id, self.sub_total, self.shipping, self.tax, self.total)
 
     @property
     def refund_amount(self):
         return Decimal(sum([r.amount for r in self.refunds.all()]))
+
+    @property
+    def subtract_refunds(self):
+        return Decimal(sum([r.amount for r in self.refunds.filter(subtract_for_remaining=True)]))
 
     def recurring_lineitems(self):
         """Get all recurring lineitems"""
@@ -389,7 +394,7 @@ class Purchase(models.Model):
     @property
     def remaining(self):
         """Return the total less the payments and auths"""
-        return self.total - self.total_payments - self.authorized_remaining
+        return self.total - self.total_payments - self.authorized_remaining + self.subtract_refunds
     
     def save(self, *args, **kwargs):
         """
