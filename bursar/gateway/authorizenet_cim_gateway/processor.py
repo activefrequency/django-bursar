@@ -255,7 +255,7 @@ class PaymentProcessor(BasePaymentProcessor):
         return results
 
     def create_customer_profile(self, data, testing=False):
-        t = get_template('bursar/create_customer_profile_request.xml')
+        t = get_template('authorizenet_cim_gateway/create_customer_profile_request.xml')
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
         try:
@@ -271,7 +271,7 @@ class PaymentProcessor(BasePaymentProcessor):
             return ProcessorResult(self.key, False, e)
 
     def delete_customer_profile(self, data, testing=False):
-        t = get_template('bursar/delete_customer_profile_request.xml')
+        t = get_template('authorizenet_cim_gateway/delete_customer_profile_request.xml')
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
         try:
@@ -296,7 +296,7 @@ class PaymentProcessor(BasePaymentProcessor):
         return self.send_payment_profile(data, testing)
 
     def send_payment_profile(self, data, testing=False):
-        t = get_template('bursar/customer_payment_profile_request.xml')
+        t = get_template('authorizenet_cim_gateway/customer_payment_profile_request.xml')
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
         try:
@@ -329,7 +329,7 @@ class PaymentProcessor(BasePaymentProcessor):
         return self.send_shipping_address(data, testing)
 
     def delete_shipping_address(self, data, testing=False):
-        template = "bursar/delete_shipping_address_request.xml"
+        template = "authorizenet_cim_gateway/delete_shipping_address_request.xml"
         t = get_template(template)
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
@@ -345,7 +345,7 @@ class PaymentProcessor(BasePaymentProcessor):
             return ProcessorResult(self.key, False, e)
 
     def send_shipping_address(self, data, testing=False):
-        template = 'bursar/customer_shipping_address_request.xml'
+        template = 'authorizenet_cim_gateway/customer_shipping_address_request.xml'
         t = get_template(template)
         data.update(self.get_api_data())
         xml_request = t.render(Context(data))
@@ -417,7 +417,7 @@ class PaymentProcessor(BasePaymentProcessor):
         if not data.has_key('customer_profile_id'):
             data['customer_profile_id'] = cim_purchase.customer_profile_id
 
-        t = get_template('bursar/create_customer_profile_transaction_request.xml')
+        t = get_template('authorizenet_cim_gateway/create_customer_profile_transaction_request.xml')
         xml_request = t.render(Context(data))
         try:
             xml_response = self.cim_post(url=data['connection'], xml_request=xml_request)

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <createCustomerProfileRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd"> 
-{% include "bursar/auth.xml" %}
+{% include "authorizenet_cim_gateway/auth.xml" %}
     <profile>
         {% if merchantCustomerId %}
         <merchantCustomerId>{{ merchantCustomerId }}</merchantCustomerId>

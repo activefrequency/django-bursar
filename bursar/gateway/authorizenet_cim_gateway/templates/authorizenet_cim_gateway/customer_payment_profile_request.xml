@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <{{ action }}CustomerPaymentProfileRequest xmlns="AnetApi/xml/v1/schema/AnetApiSchema.xsd">
-{% include "bursar/auth.xml" %}
+{% include "authorizenet_cim_gateway/auth.xml" %}
     <customerProfileId>{{ cim_purchase.customer_profile_id }}</customerProfileId> 
     <paymentProfile> 
         <billTo>
