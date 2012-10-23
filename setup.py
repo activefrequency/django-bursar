@@ -30,5 +30,5 @@ setup(
     packages = find_packages(),
     include_package_data = True,
     package_dir = {'bursar': 'bursar'},
-    package_data = {'bursar': 'templates/*'}
+    package_data = {'bursar': 'templates/*/*'}
 )
