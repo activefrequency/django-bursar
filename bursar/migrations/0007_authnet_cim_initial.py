@@ -16,7 +16,7 @@ class Migration(SchemaMigration):
             ('payment_profile_id', self.gf('django.db.models.fields.IntegerField')(null=True, blank=True)),
             ('customer_profile_id', self.gf('django.db.models.fields.IntegerField')(null=True, blank=True)),
         ))
-        db.send_create_signal('authorizenet_cim_gateway', ['CIMPurchase'])
+        db.send_create_signal('bursar', ['CIMPurchase'])
     
     
     def backwards(self, orm):
