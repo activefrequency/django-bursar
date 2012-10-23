@@ -9,23 +9,23 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Changing field 'CIMPurchase.purchase'
-        db.alter_column('authorizenet_cim_gateway_cimpurchase', 'purchase_id', self.gf('django.db.models.fields.related.OneToOneField')(blank=True, unique=True, null=True, to=orm['bursar.Purchase']))
+        db.alter_column('bursar_cimpurchase', 'purchase_id', self.gf('django.db.models.fields.related.OneToOneField')(blank=True, unique=True, null=True, to=orm['bursar.Purchase']))
 
         # Adding unique constraint on 'CIMPurchase', fields ['purchase']
-        db.create_unique('authorizenet_cim_gateway_cimpurchase', ['purchase_id'])
+        db.create_unique('bursar_cimpurchase', ['purchase_id'])
     
     
     def backwards(self, orm):
         
         # Changing field 'CIMPurchase.purchase'
-        db.alter_column('authorizenet_cim_gateway_cimpurchase', 'purchase_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['bursar.Purchase'], null=True, blank=True))
+        db.alter_column('bursar_cimpurchase', 'purchase_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['bursar.Purchase'], null=True, blank=True))
 
         # Removing unique constraint on 'CIMPurchase', fields ['purchase']
-        db.delete_unique('authorizenet_cim_gateway_cimpurchase', ['purchase_id'])
+        db.delete_unique('bursar_cimpurchase', ['purchase_id'])
     
     
     models = {
-        'authorizenet_cim_gateway.cimpurchase': {
+        'bursar.cimpurchase': {
             'Meta': {'object_name': 'CIMPurchase'},
             'customer_profile_id': ('django.db.models.fields.IntegerField', [], {'null': 'True', 'blank': 'True'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
@@ -68,4 +68,4 @@ class Migration(SchemaMigration):
         }
     }
     
-    complete_apps = ['authorizenet_cim_gateway']
+    complete_apps = ['bursar']

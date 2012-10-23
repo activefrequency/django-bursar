@@ -9,24 +9,24 @@ class Migration(SchemaMigration):
     def forwards(self, orm):
         
         # Adding model 'CIMPurchase'
-        db.create_table('authorizenet_cim_gateway_cimpurchase', (
+        db.create_table('bursar_cimpurchase', (
             ('purchase', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['bursar.Purchase'], null=True, blank=True)),
             ('shipping_address_id', self.gf('django.db.models.fields.IntegerField')(null=True, blank=True)),
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('payment_profile_id', self.gf('django.db.models.fields.IntegerField')(null=True, blank=True)),
             ('customer_profile_id', self.gf('django.db.models.fields.IntegerField')(null=True, blank=True)),
         ))
-        db.send_create_signal('authorizenet_cim_gateway', ['CIMPurchase'])
+        db.send_create_signal('bursar', ['CIMPurchase'])
     
     
     def backwards(self, orm):
         
         # Deleting model 'CIMPurchase'
-        db.delete_table('authorizenet_cim_gateway_cimpurchase')
+        db.delete_table('bursar_cimpurchase')
     
     
     models = {
-        'authorizenet_cim_gateway.cimpurchase': {
+        'bursar.cimpurchase': {
             'Meta': {'object_name': 'CIMPurchase'},
             'customer_profile_id': ('django.db.models.fields.IntegerField', [], {'null': 'True', 'blank': 'True'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
@@ -69,4 +69,4 @@ class Migration(SchemaMigration):
         }
     }
     
-    complete_apps = ['authorizenet_cim_gateway']
+    complete_apps = ['bursar']
