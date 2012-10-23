@@ -11,7 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 
 BURSAR_SETTINGS = {
     'STORE_CREDIT_NUMBERS' : False,
-    'CURRENCY' : '$' # Use a '_' for force a space
+    'CURRENCY' : '$', # Use a '_' for force a space
     'AUTHORIZENET' : {
         'LIVE' : False,
         'SIMULATE' : False,
@@ -20,7 +20,7 @@ BURSAR_SETTINGS = {
             (('Mastercard','Mastercard')),
             (('Discover','Discover')),
             #(('American Express', 'American Express'))
-        )
+        ),
         'CAPTURE' : True,
         'EXTRA_LOGGING' : False,
         'ARB' : False,
@@ -36,7 +36,7 @@ BURSAR_SETTINGS = {
             (('Mastercard','Mastercard')),
             (('Discover','Discover')),
             #(('American Express', 'American Express'))
-        )
+        ),
         'CAPTURE' : True,
         'EXTRA_LOGGING' : False,
         'ARB' : False,
@@ -146,7 +146,7 @@ BURSAR_SETTINGS = {
                              # This is because their servers restrict IPs of posting servers, even for tests.
                              # If you are developing on a desktop, you'll have to enable this.
 
-         'CAPTURE': "PAYMENT" # Should be "PAYMENT" or "DEFERRED", Note that you can only use the latter if
+         'CAPTURE': "PAYMENT", # Should be "PAYMENT" or "DEFERRED", Note that you can only use the latter if
                               # you set that option on your Prot/X account first.
          'LABEL': _('Prot/X Secure Payments'),
          'CREDITCHOICES': (
@@ -177,7 +177,7 @@ BURSAR_SETTINGS = {
          'LIVE': False,
          'SIMULATOR': False,
          'SKIP_POST': False,
-         'CAPTURE': "PAYMENT"
+         'CAPTURE': "PAYMENT",
          'CREDITCHOICES': (
                      (('VISA','Visa Credit/Debit')),
                      (('MC','Mastercard')),
