@@ -17,7 +17,7 @@ from django.utils.translation import ugettext_lazy as _
 import base64
 import logging
 import operator
-import keyedcache
+from django.core.cache import cache
 
 log = logging.getLogger('bursar.models')
 
@@ -117,7 +117,7 @@ class CreditCardDetail(models.Model):
             standin = "%s%i%i%i" % (self.display_cc, self.expire_month, self.expire_year, payment_id)
             self.encrypted_cc = _encrypt_code(standin)
             key = _encrypt_code(standin + '-card')
-            keyedcache.cache_set(key, skiplog=True, length=60*60, value=encrypted_cc)
+            cache.set(key, encrypted_cc, 60*60)
     
     def setCCV(self, ccv):
         """
@@ -126,16 +126,11 @@ class CreditCardDetail(models.Model):
         if not self.encrypted_cc:
             raise ValueError('CreditCardDetail expecting a credit card number to be stored before storing CCV')
             
-        keyedcache.cache_set(self.encrypted_cc, skiplog=True, length=60*60, value=ccv)
+        cache.set(self.encrypted_cc, ccv, 60*60)
     
     def getCCV(self):
         """Get the CCV from cache"""
-        try:
-            ccv = keyedcache.cache_get(self.encrypted_cc)
-        except keyedcache.NotCachedError:
-            ccv = ""
-
-        return ccv
+        return cache.get(self.encrypted_cc, None)
     
     ccv = property(fget=getCCV, fset=setCCV)
     
@@ -143,13 +138,13 @@ class CreditCardDetail(models.Model):
     def decryptedCC(self):
         ccnum = _decrypt_code(self.encrypted_cc)
         if not get_bursar_setting('STORE_CREDIT_NUMBERS'):
-            try:
-                key = _encrypt_code(ccnum + '-card')
-                encrypted_ccnum = keyedcache.cache_get(key)
+            key = _encrypt_code(ccnum + '-card')
+            encrypted_ccnum = cache.get(key, None)
+            if encrypted_ccnum:
                 ccnum = _decrypt_code(encrypted_ccnum)
-            except keyedcache.NotCachedError:
-                ccnum = ""
-        return ccnum
+                return ccnum
+            else:
+                return ""
 
     @property
     def expirationDate(self):
