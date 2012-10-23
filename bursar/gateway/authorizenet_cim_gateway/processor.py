@@ -411,7 +411,7 @@ class PaymentProcessor(BasePaymentProcessor):
         data.update(self.get_api_data())
         object_data = { 'action' : self.TRANS_XML[action], 'purchase' : cim_purchase.purchase, 'cim_purchase' : cim_purchase }
         data.update(object_data)
-        self.log.info("About to send a request to authorize.net: %(connection)s\n%(logPostString)s", data)
+        self.log.info("About to send a request to authorize.net: %(connection)s", data)
         if not data.has_key('payment_profile_id'):
             data['payment_profile_id'] = cim_purchase.payment_profile_id
         if not data.has_key('customer_profile_id'):
