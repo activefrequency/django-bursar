@@ -59,7 +59,7 @@ class AuthNetResponse(object):
         if r and len(r.groups()):
             return r.groups()[0]
         else:
-            None
+            return None
 
     @staticmethod
     def get_message(elm):
