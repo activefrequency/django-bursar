@@ -56,7 +56,10 @@ class AuthNetResponse(object):
         import re
         regex = re.compile("(\d+)")
         r = regex.search(text)
-        return r.groups()[0]
+        if r and len(r.groups()):
+            return r.groups()[0]
+        else:
+            None
 
     @staticmethod
     def get_message(elm):
