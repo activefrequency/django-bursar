@@ -92,6 +92,7 @@ class CreditCardDetail(models.Model):
     """
     payment = models.OneToOneField('Payment', related_name="creditcard", blank=True, null=True)
     credit_type = models.CharField(_("Credit Card Type"), max_length=16)
+    iin_number = models.CharField(_("IIN Number"), max_length=6, blank=True, null=True )  # BIN numbers are called IIN numbers now
     display_cc = models.CharField(_("CC Number (Last 4 digits)"),
         max_length=4, )
     encrypted_cc = models.CharField(_("Encrypted Credit Card"),
@@ -108,6 +109,7 @@ class CreditCardDetail(models.Model):
         Take as input a valid cc, encrypt it and store the last 4 digits in a visible form
         """
         self.display_cc = ccnum[-4:]
+        self.iin_number = ccnum[:6]
         encrypted_cc = _encrypt_code(ccnum)
         if get_bursar_setting('STORE_CREDIT_NUMBERS'):
             self.encrypted_cc = encrypted_cc
