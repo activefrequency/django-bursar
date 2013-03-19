@@ -137,7 +137,7 @@ class PaymentProcessor(BasePaymentProcessor):
             data={}
             try:
                 pending = cim_purchase.purchase.get_pending(self.key)
-                amount = pending.amount
+                amount = pending.amount if pending else 0
                 data['pending'] = pending
             except PaymentPending.DoesNotExist:
                 amount = cim_purchase.purchase.remaining
@@ -173,7 +173,8 @@ class PaymentProcessor(BasePaymentProcessor):
             self.log_extra('No remaining authorizations on %s', cim_purchase)
             return ProcessorResult(self.key, True, _("Already complete"))
 
-        amount = authorization.amount
+        if authorization:
+            amount = authorization.amount
 
         remaining = authorization.remaining
         if amount == NOTSET or amount > remaining:
