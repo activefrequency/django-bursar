@@ -18,6 +18,7 @@ import base64
 import logging
 import operator
 from django.core.cache import cache
+from gateway.authorizenet_cim_gateway.models import CIMPurchase
 
 log = logging.getLogger('bursar.models')
 
