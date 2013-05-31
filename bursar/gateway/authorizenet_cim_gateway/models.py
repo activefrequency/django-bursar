@@ -5,3 +5,6 @@ class CIMPurchase(models.Model):
     customer_profile_id = models.IntegerField(blank=True, null=True)
     payment_profile_id = models.IntegerField(blank=True, null=True)
     shipping_address_id = models.IntegerField(blank=True, null=True)
+
+    class Meta:
+        app_label = 'authorizenet_cim_gateway'
