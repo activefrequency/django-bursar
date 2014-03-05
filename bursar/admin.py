@@ -34,7 +34,7 @@ class AutocompleteAdmin(admin.ModelAdmin):
         return super(AutocompleteAdmin, self).__call__(request, url)
 
     def get_urls(self):
-        from django.conf.urls.defaults import url
+        from django.conf.urls import url
         patterns = super(AutocompleteAdmin, self).get_urls()
         info = self.admin_site.name, self.model._meta.app_label, self.model._meta.module_name
         patterns.insert(
