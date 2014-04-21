@@ -126,9 +126,6 @@ class CreditCardDetail(models.Model):
         """
         Put the CCV in the cache, don't save it for security/legal reasons.
         """
-        if not self.encrypted_cc:
-            raise ValueError('CreditCardDetail expecting a credit card number to be stored before storing CCV')
-            
         cache.set(self.encrypted_cc, ccv, 60*60)
     
     def getCCV(self):
